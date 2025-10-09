@@ -1,168 +1,252 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 
 export default function HomePage() {
   const [marketData, setMarketData] = useState(null);
   const [search, setSearch] = useState("");
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [openCategories, setOpenCategories] = useState({});
+  const [openSubcategories, setOpenSubcategories] = useState({});
+  const [allExpanded, setAllExpanded] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef(null);
 
   useEffect(() => {
+    let mounted = true;
     async function fetchData() {
       try {
         const res = await fetch("https://api.nomstead.com/open/marketplace");
         const data = await res.json();
+        if (!mounted) return;
         setMarketData(data);
       } catch (err) {
         console.error("Error loading marketplace:", err);
       }
     }
     fetchData();
+    return () => (mounted = false);
   }, []);
 
-  // Format item names (from seed_carrot → Carrot Seed)
-  function formatName(slug) {
-    return slug
-      .split("_")
-      .reverse()
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+  // --- Navn formattering ---
+  function prettifySlug(slug) {
+    if (!slug) return "";
+    const tokens = slug.replace(/[-_]+/g, " ").split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return slug;
+
+    const lower = tokens.map((t) => t.toLowerCase());
+    const priority = [
+      "wood", "stone", "iron", "gold", "cotton", "plank", "planks",
+      "bread", "carrot", "seed", "thread", "sword", "staff", "potion", "gem", "leather"
+    ];
+    const matIndex = lower.findIndex((t) => priority.includes(t));
+    if (matIndex > -1) {
+      const tok = tokens.splice(matIndex, 1)[0];
+      tokens.unshift(tok);
+    }
+    if (tokens.length > 1 && tokens[0].toLowerCase() === "seed") {
+      tokens.push(tokens.shift());
+    }
+    return tokens
+      .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
       .join(" ");
   }
 
-  // Handle search
+  if (!marketData) return <p style={{ padding: 20 }}>Indlæser Nomstead marketplace… ⏳</p>;
+
+  const toBuy = (marketData.toBuy || []).map((it) => ({
+    ...it,
+    __type: "BUY",
+    quantityAvailable: it.pricing?.availableQuantity ?? 0
+  }));
+  const toSell = (marketData.toSell || []).map((it) => ({
+    ...it,
+    __type: "SELL",
+    quantityAvailable: it.pricing?.desiredQuantity ?? 0
+  }));
+
+  const allItems = [...toBuy, ...toSell];
+
+  // Gruppering
+  const grouped = useMemo(() => {
+    const g = {};
+    allItems.forEach((item) => {
+      const cat = item.object?.category || "Other";
+      const sub = item.object?.subCategory || "Misc";
+      if (!g[cat]) g[cat] = {};
+      if (!g[cat][sub]) g[cat][sub] = [];
+      g[cat][sub].push(item);
+    });
+    return g;
+  }, [marketData]);
+
+  // Søgeforslag (dropdown)
+  const suggestions = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return [];
+    const map = new Map();
+    for (const it of allItems) {
+      const pretty = prettifySlug(it.object.slug).toLowerCase();
+      if (pretty.includes(q) || it.object.slug.toLowerCase().includes(q)) {
+        if (!map.has(it.object.slug)) map.set(it.object.slug, it);
+      }
+      if (map.size >= 8) break;
+    }
+    return Array.from(map.values());
+  }, [allItems, search]);
+
+  const searchResults = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return [];
+    return allItems.filter((it) => {
+      const pretty = prettifySlug(it.object.slug).toLowerCase();
+      return pretty.includes(q) || it.object.slug.toLowerCase().includes(q);
+    });
+  }, [allItems, search]);
+
+  // Klik på forslag
+  function applySuggestion(it) {
+    setSearch(prettifySlug(it.object.slug));
+    setShowSuggestions(false);
+  }
+
+  // Luk forslag når man trykker udenfor
   useEffect(() => {
-    if (!marketData) return;
-    const allItems = [...marketData.toBuy, ...marketData.toSell];
-    const results = allItems.filter((item) =>
-      item.object.slug.toLowerCase().includes(search.toLowerCase())
-    );
-    setFilteredItems(results);
-  }, [search, marketData]);
+    function handleClickOutside(event) {
+      if (inputRef.current && !inputRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  if (!marketData) return <p>Loading Nomstead marketplace...</p>;
-
-  const toBuy = marketData.toBuy
-    .sort((a, b) => a.pricing.unitPrice - b.pricing.unitPrice)
-    .slice(0, 10);
-  const toSell = marketData.toSell
-    .sort((a, b) => b.pricing.unitPrice - a.pricing.unitPrice)
-    .slice(0, 10);
-
-  const displayItems = search ? filteredItems : [];
+  // Fold alt
+  const toggleAll = () => {
+    const expand = !allExpanded;
+    const newCats = {};
+    const newSubs = {};
+    Object.keys(grouped).forEach((cat) => {
+      newCats[cat] = expand;
+      Object.keys(grouped[cat]).forEach((sub) => {
+        newSubs[sub] = expand;
+      });
+    });
+    setOpenCategories(newCats);
+    setOpenSubcategories(newSubs);
+    setAllExpanded(expand);
+  };
 
   return (
-    <div style={{ maxWidth: 900, margin: "auto" }}>
-      <input
-        type="text"
-        placeholder="Search for items (try 'wood')..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 10,
-          marginBottom: 20,
-          borderRadius: 5,
-          border: "1px solid #ccc"
-        }}
-      />
+    <div style={{ maxWidth: 960, margin: "8px auto", padding: 12, fontFamily: "system-ui" }}>
+      <h1 style={{ textAlign: "center" }}>🏛️ Nomstead Open Marketplace</h1>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+        <div ref={inputRef} style={{ position: "relative", flex: 1 }}>
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setShowSuggestions(true);
+            }}
+            placeholder="Søg fx 'wo' → forslag dukker op..."
+            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd" }}
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul style={{
+              position: "absolute", top: "100%", left: 0, right: 0,
+              background: "#fff", border: "1px solid #ccc", borderRadius: 8,
+              marginTop: 4, listStyle: "none", padding: 0, zIndex: 10, maxHeight: 250, overflowY: "auto"
+            }}>
+              {suggestions.map((s) => (
+                <li key={s.object.slug} onClick={() => applySuggestion(s)}
+                    style={{ display: "flex", gap: 10, alignItems: "center", padding: 8, cursor: "pointer", borderBottom: "1px solid #eee" }}>
+                  <img src={s.object.thumbnailImageUrl || s.object.imageUrl || "/favicon.ico"} alt={s.object.slug}
+                       style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover" }} />
+                  <div>{prettifySlug(s.object.slug)}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <button onClick={toggleAll} style={{ background: "#1d4ed8", color: "#fff", borderRadius: 8, padding: "10px 12px", border: "none" }}>
+          {allExpanded ? "Sammenfold ▲" : "Fold ud ▼"}
+        </button>
+      </div>
 
       {search ? (
-        <div>
-          <h2>Search Results</h2>
-          {displayItems.length === 0 && <p>No items found.</p>}
-          {displayItems.map((item, i) => (
-            <ItemCard key={i} item={item} />
+        <section>
+          <h2>Søgeresultater: {search}</h2>
+          {searchResults.map((it, i) => (
+            <ItemCard key={it.object.slug + i} item={it} prettify={prettifySlug} />
           ))}
-        </div>
+        </section>
       ) : (
-        <>
-          <Section title="🟢 Top 10 Buy Offers (Lowest Price)" items={toBuy} />
-          <Section title="🟡 Top 10 Sell Offers (Highest Price)" items={toSell} sell />
-        </>
+        Object.entries(grouped).map(([cat, subs]) => (
+          <section key={cat} style={{ marginBottom: 18 }}>
+            <div onClick={() => setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                 style={{ cursor: "pointer", background: "#eef2ff", padding: 10, borderRadius: 8 }}>
+              <b>{openCategories[cat] ? "▼" : "▶"} {cat}</b>
+            </div>
+            {openCategories[cat] && (
+              <div style={{ marginTop: 8 }}>
+                {Object.entries(subs).map(([sub, items]) => (
+                  <div key={sub}>
+                    <div onClick={() => setOpenSubcategories(prev => ({ ...prev, [sub]: !prev[sub] }))}
+                         style={{ cursor: "pointer", background: "#ecfdf5", padding: 8, borderRadius: 8 }}>
+                      <b>{openSubcategories[sub] ? "▼" : "▶"} {sub}</b>
+                    </div>
+                    {openSubcategories[sub] && (
+                      <div style={{ marginTop: 6 }}>
+                        {items.map((it, i) => (
+                          <ItemCard key={it.object.slug + i} item={it} prettify={prettifySlug} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        ))
       )}
     </div>
   );
 }
 
-function Section({ title, items, sell }) {
-  return (
-    <div style={{ marginBottom: 40 }}>
-      <h2 style={{ color: sell ? "#b8860b" : "#047857" }}>{title}</h2>
-      {items.map((item, i) => (
-        <ItemCard key={i} item={item} sell={sell} />
-      ))}
-    </div>
-  );
-}
-
-function ItemCard({ item, sell }) {
-  const [quantity, setQuantity] = useState(1);
-  const total = (quantity * item.pricing.unitPrice).toFixed(2);
-  const color = sell ? "#b8860b" : "#047857";
+function ItemCard({ item, prettify }) {
+  const [qty, setQty] = useState(1);
+  const unitPrice = item.pricing?.unitPrice ?? 0;
+  const total = (Number(unitPrice) * Number(qty || 0)).toFixed(2);
+  const isSell = item.__type === "SELL";
+  const color = isSell ? "#92400e" : "#047857";
+  const quantityAvailable = item.quantityAvailable ?? 0;
 
   return (
-    <div
-      style={{
-        backgroundColor: "#fff",
-        borderRadius: 10,
-        padding: 15,
-        marginBottom: 10,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center" }}>
-        <img
-          src={item.object.thumbnailImageUrl || item.object.imageUrl}
-          alt={item.object.slug}
-          style={{
-            width: 40,
-            height: 40,
-            marginRight: 10,
-            borderRadius: 5
-          }}
-        />
-        <div>
-          <strong style={{ fontSize: 16 }}>
-            {formatName(item.object.slug)}
-          </strong>
-          <div style={{ fontSize: 13, color: "#555" }}>
-            {item.object.category} → {item.object.subCategory}
+    <div style={{
+      display: "flex", gap: 12, alignItems: "flex-start", background: "#fff",
+      padding: 12, borderRadius: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", marginBottom: 8
+    }}>
+      <img src={item.object.thumbnailImageUrl || item.object.imageUrl || "/favicon.ico"}
+           alt={item.object.slug} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 8 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div>
+            <b>{prettify(item.object.slug)}</b>
+            <div style={{ fontSize: 13, color: "#666" }}>{item.object.category} › {item.object.subCategory}</div>
+            <div style={{ fontSize: 13 }}>Owner: <a href={item.tile?.url || "#"} target="_blank">{item.tile?.owner || "player"}</a></div>
           </div>
-          <div style={{ fontSize: 13 }}>
-            Owner:{" "}
-            <a
-              href={item.tile.url}
-              target="_blank"
-              style={{ color: color, textDecoration: "none" }}
-            >
-              {item.tile.owner}
-            </a>
+          <div style={{ textAlign: "right" }}>
+            <b style={{ color }}>{unitPrice} g</b>
+            <div style={{ fontSize: 13 }}>Available: {quantityAvailable}</div>
+            <div style={{ fontSize: 13 }}>{isSell ? "🟡 Seller" : "🟢 Buyer"}</div>
           </div>
         </div>
-      </div>
-      <div style={{ marginTop: 10 }}>
-        <span style={{ color: color, fontWeight: "bold" }}>
-          💰 {item.pricing.unitPrice} gold each
-        </span>
-        <div style={{ marginTop: 5 }}>
-          Qty:{" "}
-          <input
-            type="number"
-            value={quantity}
-            min="1"
-            onChange={(e) => setQuantity(e.target.value)}
-            style={{ width: 60 }}
-          />{" "}
-          → Total: <b>{total}</b> gold
+        <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}>
+          <label style={{ fontSize: 13 }}>Qty:</label>
+          <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
+                 style={{ width: 80, padding: 8, borderRadius: 8, border: "1px solid #eee" }} />
+          <div style={{ fontSize: 13 }}>{unitPrice} × {qty} = <b>{total} g</b></div>
         </div>
       </div>
     </div>
   );
-}
-
-function formatName(slug) {
-  return slug
-    .split("_")
-    .reverse()
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
 }
