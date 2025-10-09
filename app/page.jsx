@@ -10,23 +10,20 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    let mounted = true;
-    async function fetchData() {
-      try {
-        const res = await fetch("https://api.nomstead.com/open/marketplace");
-        const data = await res.json();
-        if (!mounted) return;
-        setMarketData(data);
-      } catch (err) {
-        console.error("Error loading marketplace:", err);
-      }
+  async function fetchMarketData() {
+    try {
+      const res = await fetch("https://api.nomstead.com/open/marketplace");
+      const data = await res.json();
+      setMarketData(data);
+    } catch (err) {
+      console.error("Error loading marketplace:", err);
     }
-    fetchData();
-    return () => (mounted = false);
+  }
+
+  useEffect(() => {
+    fetchMarketData();
   }, []);
 
-  // --- Navn formattering ---
   function prettifySlug(slug) {
     if (!slug) return "";
     const tokens = slug.replace(/[-_]+/g, " ").split(/\s+/).filter(Boolean);
@@ -42,9 +39,6 @@ export default function HomePage() {
       const tok = tokens.splice(matIndex, 1)[0];
       tokens.unshift(tok);
     }
-    if (tokens.length > 1 && tokens[0].toLowerCase() === "seed") {
-      tokens.push(tokens.shift());
-    }
     return tokens
       .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
       .join(" ");
@@ -52,15 +46,15 @@ export default function HomePage() {
 
   if (!marketData) return <p style={{ padding: 20 }}>Indlæser Nomstead marketplace… ⏳</p>;
 
-  const toBuy = (marketData.toBuy || []).map((it) => ({
+  const toBuy = (marketData?.toBuy ?? []).map((it) => ({
     ...it,
     __type: "BUY",
-    quantityAvailable: it.pricing?.availableQuantity ?? 0
+    quantityAvailable: it?.pricing?.availableQuantity ?? 0
   }));
-  const toSell = (marketData.toSell || []).map((it) => ({
+  const toSell = (marketData?.toSell ?? []).map((it) => ({
     ...it,
     __type: "SELL",
-    quantityAvailable: it.pricing?.desiredQuantity ?? 0
+    quantityAvailable: it?.pricing?.desiredQuantity ?? 0
   }));
 
   const allItems = [...toBuy, ...toSell];
@@ -84,8 +78,8 @@ export default function HomePage() {
     if (!q) return [];
     const map = new Map();
     for (const it of allItems) {
-      const pretty = prettifySlug(it.object.slug).toLowerCase();
-      if (pretty.includes(q) || it.object.slug.toLowerCase().includes(q)) {
+      const pretty = prettifySlug(it.object?.slug ?? "").toLowerCase();
+      if (pretty.includes(q) || (it.object?.slug ?? "").toLowerCase().includes(q)) {
         if (!map.has(it.object.slug)) map.set(it.object.slug, it);
       }
       if (map.size >= 8) break;
@@ -97,18 +91,16 @@ export default function HomePage() {
     const q = (search || "").trim().toLowerCase();
     if (!q) return [];
     return allItems.filter((it) => {
-      const pretty = prettifySlug(it.object.slug).toLowerCase();
-      return pretty.includes(q) || it.object.slug.toLowerCase().includes(q);
+      const pretty = prettifySlug(it.object?.slug ?? "").toLowerCase();
+      return pretty.includes(q) || (it.object?.slug ?? "").toLowerCase().includes(q);
     });
   }, [allItems, search]);
 
-  // Klik på forslag
   function applySuggestion(it) {
-    setSearch(prettifySlug(it.object.slug));
+    setSearch(prettifySlug(it.object?.slug ?? ""));
     setShowSuggestions(false);
   }
 
-  // Luk forslag når man trykker udenfor
   useEffect(() => {
     function handleClickOutside(event) {
       if (inputRef.current && !inputRef.current.contains(event.target)) {
@@ -119,7 +111,6 @@ export default function HomePage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fold alt
   const toggleAll = () => {
     const expand = !allExpanded;
     const newCats = {};
@@ -157,18 +148,23 @@ export default function HomePage() {
               marginTop: 4, listStyle: "none", padding: 0, zIndex: 10, maxHeight: 250, overflowY: "auto"
             }}>
               {suggestions.map((s) => (
-                <li key={s.object.slug} onClick={() => applySuggestion(s)}
+                <li key={s.object?.slug} onClick={() => applySuggestion(s)}
                     style={{ display: "flex", gap: 10, alignItems: "center", padding: 8, cursor: "pointer", borderBottom: "1px solid #eee" }}>
-                  <img src={s.object.thumbnailImageUrl || s.object.imageUrl || "/favicon.ico"} alt={s.object.slug}
+                  <img src={s.object?.thumbnailImageUrl || s.object?.imageUrl || "/favicon.ico"} alt={s.object?.slug}
                        style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover" }} />
-                  <div>{prettifySlug(s.object.slug)}</div>
+                  <div>{prettifySlug(s.object?.slug)}</div>
                 </li>
               ))}
             </ul>
           )}
         </div>
+
         <button onClick={toggleAll} style={{ background: "#1d4ed8", color: "#fff", borderRadius: 8, padding: "10px 12px", border: "none" }}>
           {allExpanded ? "Sammenfold ▲" : "Fold ud ▼"}
+        </button>
+
+        <button onClick={fetchMarketData} style={{ background: "#f59e0b", color: "#fff", borderRadius: 8, padding: "10px 12px", border: "none" }}>
+          🔄 Refresh
         </button>
       </div>
 
@@ -176,7 +172,7 @@ export default function HomePage() {
         <section>
           <h2>Søgeresultater: {search}</h2>
           {searchResults.map((it, i) => (
-            <ItemCard key={it.object.slug + i} item={it} prettify={prettifySlug} />
+            <ItemCard key={(it.object?.slug ?? i) + i} item={it} prettify={prettifySlug} />
           ))}
         </section>
       ) : (
@@ -197,7 +193,7 @@ export default function HomePage() {
                     {openSubcategories[sub] && (
                       <div style={{ marginTop: 6 }}>
                         {items.map((it, i) => (
-                          <ItemCard key={it.object.slug + i} item={it} prettify={prettifySlug} />
+                          <ItemCard key={(it.object?.slug ?? i) + i} item={it} prettify={prettifySlug} />
                         ))}
                       </div>
                     )}
@@ -222,31 +218,4 @@ function ItemCard({ item, prettify }) {
 
   return (
     <div style={{
-      display: "flex", gap: 12, alignItems: "flex-start", background: "#fff",
-      padding: 12, borderRadius: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", marginBottom: 8
-    }}>
-      <img src={item.object.thumbnailImageUrl || item.object.imageUrl || "/favicon.ico"}
-           alt={item.object.slug} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 8 }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>
-            <b>{prettify(item.object.slug)}</b>
-            <div style={{ fontSize: 13, color: "#666" }}>{item.object.category} › {item.object.subCategory}</div>
-            <div style={{ fontSize: 13 }}>Owner: <a href={item.tile?.url || "#"} target="_blank">{item.tile?.owner || "player"}</a></div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <b style={{ color }}>{unitPrice} g</b>
-            <div style={{ fontSize: 13 }}>Available: {quantityAvailable}</div>
-            <div style={{ fontSize: 13 }}>{isSell ? "🟡 Seller" : "🟢 Buyer"}</div>
-          </div>
-        </div>
-        <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}>
-          <label style={{ fontSize: 13 }}>Qty:</label>
-          <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
-                 style={{ width: 80, padding: 8, borderRadius: 8, border: "1px solid #eee" }} />
-          <div style={{ fontSize: 13 }}>{unitPrice} × {qty} = <b>{total} g</b></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+      display: "flex", gap: 12, alignItems: "flex-start", background
