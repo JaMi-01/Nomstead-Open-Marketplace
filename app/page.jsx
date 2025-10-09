@@ -1,10 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
 
-// Helper: prettify names
-const prettify = (str) => str ? str.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "";
+// Helper: prettier names (Wood Flamingo / Carrot Seed osv.)
+const prettify = (str) => {
+  if (!str) return "";
+  const words = str.replace(/_/g, " ").split(" ");
+  if (words.length === 2) return `${words[1]} ${words[0]}`;
+  if (words.length > 2) return `${words.slice(1).join(" ")} ${words[0]}`;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
 
-// Fetch data from Nomstead API
+// Fetch Nomstead Marketplace
 const fetchItems = async () => {
   const res = await fetch("https://api.nomstead.com/open/marketplace");
   if (!res.ok) throw new Error("Failed fetching marketplace");
@@ -30,6 +36,7 @@ export default function Page() {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const loadData = async () => {
     setRefreshing(true);
@@ -47,7 +54,7 @@ export default function Page() {
     loadData();
   }, []);
 
-  // Smart suggestions
+  // Smart suggestions for search
   useEffect(() => {
     if (!search) return setSuggestions([]);
     const allItems = [...items.toBuy, ...items.toSell];
@@ -57,7 +64,7 @@ export default function Page() {
     setSuggestions([...new Set(filtered)].slice(0, 10));
   }, [search, items]);
 
-  // Group by category/subcategory
+  // Group items by category/subcategory
   const categories = {};
   [...items.toBuy, ...items.toSell].forEach((item) => {
     const cat = item.object.category || "Uncategorized";
@@ -67,9 +74,19 @@ export default function Page() {
     categories[cat][sub].push(item);
   });
 
+  const handleSelectSuggestion = (val) => {
+    setSearch(val);
+    setSuggestions([]); // dropdown forsvinder når valgt
+  };
+
+  const expandAll = () => setShowAllCategories(true);
+  const collapseAll = () => setShowAllCategories(false);
+
   return (
     <div style={{ padding: 16 }}>
-      <h1>Nomstead Open Marketplace</h1>
+      <h1 style={{ textAlign: "center", color: "#047857", marginBottom: 16 }}>
+        Nomstead Open Marketplace
+      </h1>
 
       <div style={{ marginBottom: 12, position: "relative" }}>
         <input
@@ -93,7 +110,7 @@ export default function Page() {
             width: 200
           }}>
             {suggestions.map(s => (
-              <div key={s} style={{ cursor: "pointer" }} onClick={() => setSearch(s)}>
+              <div key={s} style={{ cursor: "pointer" }} onClick={() => handleSelectSuggestion(s)}>
                 {s}
               </div>
             ))}
@@ -103,6 +120,9 @@ export default function Page() {
 
       {search ? (
         <div>
+          <button onClick={() => setSearch("")} style={{ marginBottom: 12, padding: 6 }}>
+            Back to homepage
+          </button>
           {[...items.toBuy, ...items.toSell]
             .filter(i => prettify(i.object.slug).toLowerCase() === search.toLowerCase())
             .map(item => (
@@ -110,19 +130,25 @@ export default function Page() {
             ))}
         </div>
       ) : (
-        Object.keys(categories).map(cat => (
-          <div key={cat} style={{ marginBottom: 12 }}>
-            <h2>{cat}</h2>
-            {Object.keys(categories[cat]).map(sub => (
-              <details key={sub} style={{ marginLeft: 16 }}>
-                <summary>{sub}</summary>
-                {categories[cat][sub].map(item => (
-                  <ItemCard key={item.tile.url + item.object.slug + item.__type} item={item} prettify={prettify} />
-                ))}
-              </details>
-            ))}
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            <button onClick={expandAll} style={{ marginRight: 8, padding: 6 }}>Expand All</button>
+            <button onClick={collapseAll} style={{ padding: 6 }}>Collapse All</button>
           </div>
-        ))
+          {Object.keys(categories).map(cat => (
+            <div key={cat} style={{ marginBottom: 12 }}>
+              <h2 style={{ color: "#1e3a8a" }}>{cat}</h2>
+              {Object.keys(categories[cat]).map(sub => (
+                <details key={sub} open={showAllCategories} style={{ marginLeft: 16 }}>
+                  <summary>{sub}</summary>
+                  {categories[cat][sub].map(item => (
+                    <ItemCard key={item.tile.url + item.object.slug + item.__type} item={item} prettify={prettify} />
+                  ))}
+                </details>
+              ))}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -161,7 +187,7 @@ function ItemCard({ item, prettify }) {
           Owner: <a href={item.tile?.url} target="_blank" rel="noreferrer">{item.tile?.owner}</a>
         </div>
         <div style={{ fontSize: 12 }}>
-          Unit Price: {unitPrice} | Quantity: {quantityAvailable}
+          Unit Price: {unitPrice} gold | Quantity: {quantityAvailable}
         </div>
         <div style={{ marginTop: 4 }}>
           <input
@@ -170,7 +196,7 @@ function ItemCard({ item, prettify }) {
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             style={{ width: 60, padding: 4, borderRadius: 4, border: "1px solid #ccc" }}
-          /> × {unitPrice} = <b>{total}</b>
+          /> × {unitPrice} gold = <b>{total} gold</b>
         </div>
       </div>
     </div>
