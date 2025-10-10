@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-export default function ItemCard({ item, prettify, profit }) {
+export default function ItemCard({ item, prettify, profit = null }) {
   const [qty, setQty] = useState(1);
   const unitPrice = Number(item?.pricing?.unitPrice ?? 0);
   const total = (unitPrice * Number(qty || 0)).toFixed(2);
@@ -57,9 +57,9 @@ export default function ItemCard({ item, prettify, profit }) {
           />
           <div style={{ fontSize: 13 }}>{unitPrice} × {qty} = <b>{total} gold</b></div>
 
-          {isSell && profit !== null && (
+          { (profit !== null && (item?.__type ?? "").toUpperCase() === "SELL") && (
             <div style={{ marginLeft: "auto", background: "#fff7ed", border: "1px solid #fde68a", padding: "6px 8px", borderRadius: 8, color: "#92400e", fontWeight: 700 }}>
-              Profit: {profit > 0 ? `${profit} gold` : `${profit} gold`}
+              Profit: {profit} gold
             </div>
           )}
         </div>
