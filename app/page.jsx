@@ -1,8 +1,9 @@
 "use client";
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ItemCard from "./itemCard";
+import SearchResults from "./searchResults";
 
-/* ---------------- prettify slug ---------------- */
+/* ---------------- prettify slug (same logic used across the app) ---------------- */
 function prettifySlug(slug) {
   if (!slug) return "";
   const parts = slug.replace(/[-_]+/g, " ").trim().split(/\s+/);
@@ -18,7 +19,7 @@ function prettifySlug(slug) {
   return parts.map(p => p[0]?.toUpperCase() + p.slice(1).toLowerCase()).join(" ");
 }
 
-/* ---------------- fetch marketplace ---------------- */
+/* ---------------- fetch helper ---------------- */
 async function fetchMarketplace() {
   const res = await fetch("https://api.nomstead.com/open/marketplace");
   if (!res.ok) throw new Error("Failed to fetch marketplace");
@@ -28,7 +29,7 @@ async function fetchMarketplace() {
   return { toBuy, toSell };
 }
 
-/* ---------------- Main component ---------------- */
+/* ---------------- main page ---------------- */
 export default function Page() {
   const [market, setMarket] = useState({ toBuy: [], toSell: [] });
   const [loading, setLoading] = useState(true);
@@ -36,12 +37,14 @@ export default function Page() {
 
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
-  const [selectedTab, setSelectedTab] = useState("BUY"); // controls Buy/Sell both front & search
+  const [selectedTab, setSelectedTab] = useState("BUY"); // global tab controls both front & search
   const [showAll, setShowAll] = useState(false);
 
   const inputWrapRef = useRef(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -105,7 +108,7 @@ export default function Page() {
     setSuggestions([]);
   }
 
-  // group by category/subcategory
+  // grouped categories/subcategories with sorting
   const grouped = useMemo(() => {
     const g = {};
     for (const it of allItems) {
@@ -115,7 +118,6 @@ export default function Page() {
       if (!g[cat][sub]) g[cat][sub] = [];
       g[cat][sub].push(it);
     }
-    // sort lists: buys asc, sells desc
     for (const cat of Object.keys(g)) {
       for (const sub of Object.keys(g[cat])) {
         g[cat][sub].sort((a,b) => {
@@ -130,25 +132,6 @@ export default function Page() {
     return g;
   }, [allItems]);
 
-  // search results helpers
-  function searchResultsByName(name) {
-    const n = (name ?? "").trim().toLowerCase();
-    const buys = (market.toBuy ?? []).filter(i => prettifySlug(i.object?.slug).toLowerCase() === n)
-      .sort((a,b) => (a.pricing?.unitPrice ?? 0) - (b.pricing?.unitPrice ?? 0));
-    const sells = (market.toSell ?? []).filter(i => prettifySlug(i.object?.slug).toLowerCase() === n)
-      .sort((a,b) => (b.pricing?.unitPrice ?? 0) - (a.pricing?.unitPrice ?? 0));
-    return { buys, sells };
-  }
-
-  function profitPotentialForSlug(name) {
-    const { buys, sells } = searchResultsByName(name);
-    if (!buys.length || !sells.length) return null;
-    const cheapest = buys[0].pricing?.unitPrice ?? 0;
-    const highest = sells[0].pricing?.unitPrice ?? 0;
-    return Number((highest - cheapest).toFixed(2));
-  }
-
-  /* ------------------- RENDER ------------------- */
   return (
     <main style={{ minHeight: "100vh", background: "#fdf6e3", padding: 16, fontFamily: "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial" }}>
       {/* header */}
@@ -166,7 +149,7 @@ export default function Page() {
         <div ref={inputWrapRef} style={{ position: "relative", minWidth: 260 }}>
           <input
             aria-label="Search items"
-            placeholder="Søg fx 'wo' → Wood Plank..."
+            placeholder="Search (e.g. 'wo' → Wood Plank)..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{ width: 300, padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
@@ -191,7 +174,7 @@ export default function Page() {
           </button>
         </div>
 
-        {/* global tabs used on both front and search */}
+        {/* global tabs used on front & search */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button onClick={() => setSelectedTab("BUY")} style={{ padding: "8px 12px", borderRadius: 8, border: selectedTab === "BUY" ? "2px solid #047857" : "1px solid #eee", background: selectedTab === "BUY" ? "#ecfdf5" : "#fff" }}>Buy</button>
           <button onClick={() => setSelectedTab("SELL")} style={{ padding: "8px 12px", borderRadius: 8, border: selectedTab === "SELL" ? "2px solid #92400e" : "1px solid #eee", background: selectedTab === "SELL" ? "#fff7ed" : "#fff" }}>Sell</button>
@@ -200,41 +183,18 @@ export default function Page() {
 
       {/* content */}
       <section style={{ maxWidth: 1200, margin: "0 auto" }}>
-        {loading ? <div>Indlæser marketplace…</div> : null}
+        {loading ? <div>Loading marketplace…</div> : null}
 
         {/* SEARCH MODE */}
         {query && query.trim() !== "" ? (
-          <section>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <button onClick={() => { setQuery(""); setSuggestions([]); }} style={{ padding: "8px 12px", borderRadius: 8 }}>← Back to homepage</button>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ fontSize: 14, color: "#333" }}>Showing results for <b>{query}</b></div>
-                <div style={{ fontSize: 14, color: "#b45309" }}>
-                  {(profitPotentialForSlug(query) !== null) ? `Potential profit: ${profitPotentialForSlug(query)} gold` : ""}
-                </div>
-              </div>
-            </div>
-
-            {/* Show either Buy or Sell based on selectedTab (Buy default) */}
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {selectedTab === "BUY" ? (
-                <div style={{ flex: 1, minWidth: 300 }}>
-                  <h3 style={{ color: "#047857", marginTop: 0 }}>Buy (lowest first)</h3>
-                  {searchResultsByName(query).buys.map(i => <ItemCard key={`${i.tile?.url}-${i.object?.slug}-BUY`} item={i} prettify={prettifySlug} />)}
-                  {searchResultsByName(query).buys.length === 0 && <div style={{ color: "#666" }}>Ingen buy-ordre fundet</div>}
-                </div>
-              ) : (
-                <div style={{ flex: 1, minWidth: 300 }}>
-                  <h3 style={{ color: "#92400e", marginTop: 0 }}>Sell (highest first)</h3>
-                  {searchResultsByName(query).sells.map(i => {
-                    const profit = profitPotentialForSlug(query);
-                    return <ItemCard key={`${i.tile?.url}-${i.object?.slug}-SELL`} item={i} prettify={prettifySlug} profit={profit} />;
-                  })}
-                  {searchResultsByName(query).sells.length === 0 && <div style={{ color: "#666" }}>Ingen sell-ordre fundet</div>}
-                </div>
-              )}
-            </div>
-          </section>
+          <SearchResults
+            query={query}
+            market={market}
+            prettify={prettifySlug}
+            onBack={() => { setQuery(""); setSuggestions([]); }}
+            selectedTab={selectedTab}
+            setSelectedTab={setSelectedTab}
+          />
         ) : (
           /* FRONT PAGE */
           <section>
@@ -260,11 +220,8 @@ export default function Page() {
                       </summary>
 
                       <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-                        {shown.length === 0 && <div style={{ color: "#666" }}>Ingen {selectedTab === "BUY" ? "buy" : "sell"} items</div>}
-                        {shown.map(i => {
-                          const profit = selectedTab === "SELL" ? profitPotentialForSlug(prettifySlug(i.object?.slug)) : null;
-                          return <ItemCard key={`${i.tile?.url}-${i.object?.slug}-${i.__type}`} item={i} prettify={prettifySlug} profit={profit} />;
-                        })}
+                        {shown.length === 0 && <div style={{ color: "#666" }}>No {selectedTab === "BUY" ? "buy" : "sell"} items</div>}
+                        {shown.map(i => <ItemCard key={`${i.tile?.url}-${i.object?.slug}-${i.__type}`} item={i} prettify={prettifySlug} />)}
                       </div>
                     </details>
                   );
@@ -276,23 +233,4 @@ export default function Page() {
       </section>
     </main>
   );
-
-  /* ------------- helper functions inside component ------------- */
-
-  function searchResultsByName(name) {
-    const n = (name ?? "").trim().toLowerCase();
-    const buys = (market.toBuy || []).filter(i => prettifySlug(i.object?.slug).toLowerCase() === n)
-      .sort((a,b) => (a.pricing?.unitPrice ?? 0) - (b.pricing?.unitPrice ?? 0));
-    const sells = (market.toSell || []).filter(i => prettifySlug(i.object?.slug).toLowerCase() === n)
-      .sort((a,b) => (b.pricing?.unitPrice ?? 0) - (a.pricing?.unitPrice ?? 0));
-    return { buys, sells };
-  }
-
-  function profitPotentialForSlug(name) {
-    const { buys, sells } = searchResultsByName(name);
-    if (!buys.length || !sells.length) return null;
-    const cheapest = buys[0].pricing?.unitPrice ?? 0;
-    const highest = sells[0].pricing?.unitPrice ?? 0;
-    return Number((highest - cheapest).toFixed(2));
-  }
 }
