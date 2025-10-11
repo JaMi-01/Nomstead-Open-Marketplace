@@ -28,19 +28,19 @@ Displays live trading data for buying, selling, and profit opportunities across 
 ---
 
 ## 📁 Project Structure
-nomstead-marketplace-v2/
-:app/
+#nomstead-marketplace-v2/
+#app/
 - layout.jsx
 - globals.css
 - page.jsx
 - searchResults.jsx
-:app/components/
+#app/components/
 - ItemCard.jsx
 - ProfitCard.jsx
 - SearchBar.jsx
 - Tabs.jsx
 - DonateSection.jsx
-:Main/
+#Main/
 - package.json
 - next.config.js
 - README.md
