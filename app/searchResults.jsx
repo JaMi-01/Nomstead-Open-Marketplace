@@ -1,18 +1,40 @@
 "use client";
+import { useState, useEffect } from "react";
 import ItemCard from "./components/ItemCard";
-import ProfitCard from "./components/ProfitCard";
+import SearchBar from "./components/SearchBar";
+import Tabs from "./components/Tabs";
 
-export default function SearchResults({ results, activeTab }) {
-  if (!results.length) return null;
+export default function SearchResults({ searchParams }) {
+  const [items, setItems] = useState([]);
+  const [activeTab, setActiveTab] = useState("buy");
 
-  const items = results.sort((a, b) => a.item.localeCompare(b.item));
+  useEffect(() => {
+    fetch("https://api.nomstead.com/open/marketplace")
+      .then((r) => r.json())
+      .then((d) => setItems(d));
+  }, []);
+
+  const term = (searchParams?.q || "").toLowerCase();
+  const results = items.filter((i) =>
+    i.object.slug.toLowerCase().includes(term)
+  );
 
   return (
-    <section>
-      {items.map((item, idx) => {
-        if (activeTab === "profit") return <ProfitCard key={idx} item={item} />;
-        return <ItemCard key={idx} item={item} type={activeTab} />;
-      })}
-    </section>
+    <div>
+      <SearchBar />
+      <Tabs activeTab={activeTab} setActiveTab={setActiveTab} tabs={["buy", "sell"]} />
+
+      <button onClick={() => (window.location.href = "/")} style={{ marginBottom: 16 }}>
+        Back to homepage
+      </button>
+
+      {results.length === 0 ? (
+        <p>No results found.</p>
+      ) : (
+        results.map((item, i) => (
+          <ItemCard key={i} item={item} type={activeTab} />
+        ))
+      )}
+    </div>
   );
 }
