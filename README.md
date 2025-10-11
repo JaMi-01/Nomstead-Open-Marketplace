@@ -1,33 +1,46 @@
-# Nomstead Open Marketplace
+# 🌾 Nomstead Open Marketplace v2.4
 
-A Next.js 14 marketplace app that shows Buy, Sell and Profit opportunities from the Nomstead Open API.
+A beautiful open marketplace dashboard for the **Nomstead Kingdoms** — built with **Next.js** and pure **CSS**.  
+Displays live trading data for buying, selling, and profit opportunities across the realms.  
 
-## Features
+---
 
-- Homepage with tabs: **Buy**, **Sell**, **Profit** (Profit only on homepage)
-- Foldable categories and subcategories
-- Top 10 items per category for the selected tab
-- Smart search with autocomplete suggestions (dropdown hides on select/click-outside)
-- Search results page shows **Buy** by default and a tab to switch to **Sell**
-- Buy cards (green), Sell cards (gold), Profit cards (light-blue)
-- Bulk calculator (default = 1)
-- Unit price and totals displayed in `gold`
-- Refresh button
-- Links to player's kingdom via `tile.url`
+## ⚙️ Features
 
-## Files
+✅ Real-time item search with smart autocomplete  
+✅ Tabs for **Buy**, **Sell**, and **Profit**  
+✅ Auto-sorted items (lowest Buy / highest Sell)  
+✅ Profit cards highlight best trading opportunities  
+✅ Clean, centered layout and mobile-friendly  
+✅ Donate section supporting multiple networks  
+✅ Built for **Vercel** deployment  
 
-- `package.json`
-- `next.config.js`
-- `app/layout.jsx`
-- `app/globals.css`
-- `app/page.jsx`
-- `app/searchResults.jsx`
-- `app/components/ItemCard.jsx`
-- `app/components/ProfitCard.jsx`
+---
 
-## Run locally
+## 🧩 Tech Stack
 
-```bash
-npm install
-npm run dev
+- **Framework:** Next.js 14 (App Router)
+- **Language:** JavaScript (React)
+- **Styling:** Pure CSS
+- **Hosting:** Vercel
+- **Data Source:** Nomstead Open API
+
+---
+
+## 📁 Project Structure
+nomstead-marketplace-v2/
+├── app/
+│   ├── layout.jsx
+│   ├── globals.css
+│   ├── page.jsx
+│   ├── searchResults.jsx
+│   └── components/
+│       ├── ItemCard.jsx
+│       ├── ProfitCard.jsx
+│       ├── SearchBar.jsx
+│       ├── Tabs.jsx
+│       └── DonateSection.jsx
+├── package.json
+├── next.config.js
+├── README.md
+└── .gitignore
