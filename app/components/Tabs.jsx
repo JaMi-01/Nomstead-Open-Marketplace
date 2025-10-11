@@ -1,19 +1,16 @@
-export default function Tabs({ activeTab, setActiveTab }) {
-  const tabs = ["buy", "sell", "profit"];
-
+export default function Tabs({ activeTab, setActiveTab, tabs }) {
   return (
-    <div style={{ marginTop: "1rem" }}>
-      {tabs.map((tab) => (
+    <div style={{ textAlign: "center", marginBottom: 20 }}>
+      {tabs.map((t) => (
         <button
-          key={tab}
-          onClick={() => setActiveTab(tab)}
+          key={t}
+          onClick={() => setActiveTab(t)}
           style={{
-            backgroundColor: activeTab === tab ? "#2563eb" : "#e5e7eb",
-            color: activeTab === tab ? "white" : "#333",
-            margin: "0 5px"
+            background: activeTab === t ? "#4fa3ff" : "#333",
+            marginRight: 10,
           }}
         >
-          {tab.toUpperCase()}
+          {t.toUpperCase()}
         </button>
       ))}
     </div>
