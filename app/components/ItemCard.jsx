@@ -1,12 +1,20 @@
 export default function ItemCard({ item, type }) {
-  const color = type === "buy" ? "#d1fae5" : "#fef3c7";
+  const entries = type === "buy" ? item.toBuy : item.toSell;
+  if (!entries?.length) return null;
 
   return (
-    <div className="card" style={{ backgroundColor: color }}>
-      <h3>{item.name}</h3>
-      <p>Kingdom: {item.kingdom}</p>
-      <p>Unit price: {item.price} gold</p>
-      <p>Quantity: {item.qty}</p>
+    <div style={{
+      background: "#222",
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 10,
+    }}>
+      <h3>{item.object.name}</h3>
+      {entries.map((e, i) => (
+        <div key={i}>
+          <a href={e.tile.url} target="_blank">{e.tile.name}</a> — {e.unitPrice} gold — Qty: {e.availableQuantity || e.desiredQuantity}
+        </div>
+      ))}
     </div>
   );
 }
