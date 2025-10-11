@@ -1,58 +1,25 @@
 body {
-  background-color: #fdf6e3;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #222;
+  font-family: system-ui, sans-serif;
   margin: 0;
-  padding: 0;
-  text-align: center;
-}
-
-header {
-  background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+  background: #101010;
   color: white;
-  padding: 1rem;
-  border-bottom: 3px solid #1e40af;
 }
 
-header h1 {
-  margin: 0;
-  font-size: 1.8rem;
-}
-
-header p.version {
-  font-style: italic;
-  font-size: 0.9rem;
-  margin-top: 0.2rem;
-}
-
-footer {
-  margin-top: 2rem;
-  font-size: 0.8rem;
-  color: #555;
+a {
+  color: #4fa3ff;
+  text-decoration: none;
 }
 
 button {
   cursor: pointer;
   border: none;
+  padding: 8px 14px;
   border-radius: 6px;
-  padding: 0.6rem 1.2rem;
+  background: #4fa3ff;
+  color: white;
+  font-weight: bold;
 }
 
-input {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  width: 60%;
-  margin: 1rem auto;
-  display: block;
-}
-
-.card {
-  margin: 1rem auto;
-  border-radius: 10px;
-  padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  width: 90%;
-  max-width: 600px;
-  text-align: left;
+button:hover {
+  opacity: 0.8;
 }
