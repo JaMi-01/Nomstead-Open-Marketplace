@@ -1,66 +1,49 @@
-"use client";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function SearchBar() {
-  const [query, setQuery] = useState("");
+export default function SearchBar({ allItems }) {
+  const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [items, setItems] = useState([]);
   const router = useRouter();
 
   useEffect(() => {
-    fetch("https://api.nomstead.com/open/marketplace")
-      .then((r) => r.json())
-      .then((d) => setItems(d));
-  }, []);
+    if (!q || q.length < 1) return setSuggestions([]);
+    const lower = q.toLowerCase();
+    // Suggest unique names based on contained word
+    const names = Array.from(new Set(allItems.map(i => i.name)));
+    const matches = names.filter(n => n.toLowerCase().includes(lower)).slice(0, 7);
+    setSuggestions(matches);
+  }, [q, allItems]);
 
-  const handleSearch = () => {
-    if (query.trim()) router.push(`/searchResults?q=${query}`);
-  };
-
-  const handleSelect = (val) => {
-    setQuery(val);
+  const goSearch = (term) => {
+    setQ(term);
     setSuggestions([]);
-    router.push(`/searchResults?q=${val}`);
+    // route to search results with query param
+    router.push(`/searchResults?q=${encodeURIComponent(term)}`);
   };
-
-  useEffect(() => {
-    if (query.length > 1) {
-      const filtered = items
-        .map((i) => i.object.name)
-        .filter((n) => n.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 5);
-      setSuggestions(filtered);
-    } else setSuggestions([]);
-  }, [query]);
 
   return (
-    <div style={{ textAlign: "center", marginBottom: 20 }}>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-        placeholder="Search for an item..."
-        style={{ padding: "8px", width: "60%", borderRadius: "6px" }}
-      />
-      <button onClick={handleSearch} style={{ marginLeft: 10 }}>Search</button>
-      {suggestions.length > 0 && (
-        <div style={{
-          background: "#333",
-          borderRadius: 8,
-          margin: "0 auto",
-          width: "60%",
-          marginTop: 5,
-          textAlign: "left",
-          padding: 5,
-        }}>
-          {suggestions.map((s, i) => (
-            <div key={i} onClick={() => handleSelect(s)} style={{ cursor: "pointer" }}>
-              {s}
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search items (e.g. Wood Plank, Carrot)..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && goSearch(q)}
+          className="w-full p-3 border rounded shadow-inner"
+        />
+        {suggestions.length > 0 && (
+          <ul className="suggestion-list absolute left-0 right-0 bg-white border mt-1 rounded max-h-52 overflow-auto">
+            {suggestions.map(s => (
+              <li key={s} className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => goSearch(s)}>
+                {s}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
