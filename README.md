@@ -1,27 +1,30 @@
 # Nomstead Open Marketplace
 
-A Next.js 14 marketplace app that shows live buy/sell orders from the Nomstead Open API.
+A Next.js 14 marketplace app that shows Buy, Sell and Profit opportunities from the Nomstead Open API.
 
 ## Features
 
-- Homepage with collapsible categories & subcategories.
-- Tabs for **Buy** and **Sell** (both on the homepage and in search).
-- Buy cards sorted by lowest price; Sell cards sorted by highest price.
-- Search with autocomplete suggestions (dropdown disappears when an item is selected).
-- Bulk calculator (default = 1), unit price & totals shown in `gold`.
-- Refresh button to re-fetch marketplace data.
-- Top 10 items shown per category on the homepage (for selected tab).
-- Nice banner and card styling (green for buy, gold for sell).
-- Profit potential ONLY displayed on the **search results page**.
+- Homepage with tabs: **Buy**, **Sell**, **Profit** (Profit only on homepage)
+- Foldable categories and subcategories
+- Top 10 items per category for the selected tab
+- Smart search with autocomplete suggestions (dropdown hides on select/click-outside)
+- Search results page shows **Buy** by default and a tab to switch to **Sell**
+- Buy cards (green), Sell cards (gold), Profit cards (light-blue)
+- Bulk calculator (default = 1)
+- Unit price and totals displayed in `gold`
+- Refresh button
+- Links to player's kingdom via `tile.url`
 
 ## Files
 
-- `package.json` — project settings & scripts
-- `next.config.js` — image domains
-- `app/layout.jsx` — global layout
-- `app/page.jsx` — main page (homepage + search control)
-- `app/searchResults.jsx` — search results (Buy/Sell tabs + profit)
-- `app/itemCard.jsx` — card component for items
+- `package.json`
+- `next.config.js`
+- `app/layout.jsx`
+- `app/globals.css`
+- `app/page.jsx`
+- `app/searchResults.jsx`
+- `app/components/ItemCard.jsx`
+- `app/components/ProfitCard.jsx`
 
 ## Run locally
 
