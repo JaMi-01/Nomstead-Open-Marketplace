@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function SearchBar({ allItems }) {
+export default function SearchBar({ allItemsFlat = [] }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const router = useRouter();
@@ -10,16 +10,14 @@ export default function SearchBar({ allItems }) {
   useEffect(() => {
     if (!q || q.length < 1) return setSuggestions([]);
     const lower = q.toLowerCase();
-    // Suggest unique names based on contained word
-    const names = Array.from(new Set(allItems.map(i => i.name)));
-    const matches = names.filter(n => n.toLowerCase().includes(lower)).slice(0, 7);
+    const uniqueNames = Array.from(new Set(allItemsFlat.map(i => i.name)));
+    const matches = uniqueNames.filter(n => n.toLowerCase().includes(lower)).slice(0, 7);
     setSuggestions(matches);
-  }, [q, allItems]);
+  }, [q, allItemsFlat]);
 
   const goSearch = (term) => {
     setQ(term);
     setSuggestions([]);
-    // route to search results with query param
     router.push(`/searchResults?q=${encodeURIComponent(term)}`);
   };
 
