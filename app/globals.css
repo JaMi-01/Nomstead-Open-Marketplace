@@ -20,3 +20,8 @@ html, body, #__next {
   transform: translateY(-6px);
   box-shadow: 0 10px 30px rgba(16,24,40,0.08);
 }
+
+/* collapsed/expanded transition */
+.collapse-enter {
+  transition: max-height 0.18s ease;
+}
