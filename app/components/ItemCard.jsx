@@ -1,28 +1,16 @@
 'use client';
 import React, { useState } from 'react';
 
-/*
-  item structure expected:
-  {
-    slug,
-    name,
-    image,
-    category,
-    subCategory,
-    buyOffers: [{unitPrice, quantity, kingdomName, kingdomUrl}],
-    sellOffers: [{unitPrice, quantity, kingdomName, kingdomUrl}]
-  }
-  When rendering a buy-card, show buyOffers sorted ascending; sell-card show sellOffers sorted descending.
-*/
-
 export default function ItemCard({ item, viewType = 'buy' }) {
   const [qty, setQty] = useState(1);
 
   const offers = viewType === 'buy'
-    ? (item.buyOffers || []).slice().sort((a,b) => a.unitPrice - b.unitPrice)
-    : (item.sellOffers || []).slice().sort((a,b) => b.unitPrice - a.unitPrice);
+    ? (item.buyOffers || []).slice().sort((a,b) => Number(a.unitPrice) - Number(b.unitPrice))
+    : (item.sellOffers || []).slice().sort((a,b) => Number(b.unitPrice) - Number(a.unitPrice));
 
   if (!offers.length) return null;
+
+  const best = offers[0] || { unitPrice: 0, quantity: 0, kingdomName: 'kingdom', kingdomUrl: '#' };
 
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm card-hover">
@@ -30,11 +18,14 @@ export default function ItemCard({ item, viewType = 'buy' }) {
         <img src={item.image || '/placeholder.png'} alt={item.name} className="w-28 h-20 object-cover rounded"/>
         <div className="flex-1">
           <div className="flex items-start justify-between">
-            <h3 className="font-semibold text-lg">{item.name}</h3>
-            <div className="text-sm text-gray-500">{item.category}{item.subCategory ? ' / ' + item.subCategory : ''}</div>
+            <div>
+              <h3 className="font-semibold text-lg">{item.name}</h3>
+              <div className="text-sm text-gray-500">{item.category}{item.subCategory ? ' / ' + item.subCategory : ''}</div>
+            </div>
+            <div className="text-sm text-gray-600">{viewType === 'buy' ? 'Buy' : 'Sell'}</div>
           </div>
 
-          <div className="mt-2 space-y-2">
+          <div className="mt-3 space-y-2">
             {offers.slice(0,5).map((o, idx) => (
               <div key={idx} className="flex justify-between items-center border rounded p-2 bg-gray-50">
                 <div>
@@ -61,11 +52,9 @@ export default function ItemCard({ item, viewType = 'buy' }) {
               className="w-24 p-2 border rounded"
             />
             <div className="text-sm">
-              Total (example): <span className="font-semibold">
-                {Number(offers[0].unitPrice * qty).toFixed(4)} gold
-              </span>
+              Total: <span className="font-semibold">{Number(best.unitPrice * qty).toFixed(4)}</span> gold
             </div>
-            <a href={offers[0].kingdomUrl} target="_blank" rel="noreferrer" className="ml-auto text-sm text-blue-600 underline">View Kingdom</a>
+            <a href={best.kingdomUrl} target="_blank" rel="noreferrer" className="ml-auto text-sm text-blue-600 underline">View Kingdom</a>
           </div>
         </div>
       </div>
