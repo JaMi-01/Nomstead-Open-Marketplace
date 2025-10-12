@@ -1,28 +1,18 @@
 'use client';
 import React, { useState } from 'react';
 
-/*
-  item structure expected:
-  {
-    slug, name,
-    buyOffers: [{unitPrice, quantity, kingdomName, kingdomUrl}],
-    sellOffers: [{unitPrice, quantity, kingdomName, kingdomUrl}]
-  }
-  Profit card uses lowest buyOffer and highest sellOffer.
-*/
-
 export default function ProfitCard({ item }) {
   const [bulk, setBulk] = useState(1);
 
-  const lowestBuy = (item.buyOffers || []).slice().sort((a,b) => a.unitPrice - b.unitPrice)[0];
-  const highestSell = (item.sellOffers || []).slice().sort((a,b) => b.unitPrice - a.unitPrice)[0];
+  const lowestBuy = (item.buyOffers || []).slice().sort((a,b) => Number(a.unitPrice) - Number(b.unitPrice))[0];
+  const highestSell = (item.sellOffers || []).slice().sort((a,b) => Number(b.unitPrice) - Number(a.unitPrice))[0];
 
   if (!lowestBuy || !highestSell) return null;
 
   const profitPerUnit = Number(highestSell.unitPrice) - Number(lowestBuy.unitPrice);
   if (profitPerUnit <= 0) return null;
 
-  const total = (profitPerUnit * Math.max(1, Number(bulk || 1)));
+  const total = profitPerUnit * Math.max(1, Number(bulk || 1));
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
