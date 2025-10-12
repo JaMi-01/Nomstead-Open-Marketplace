@@ -1,7 +1,7 @@
 'use client';
 export default function Tabs({ tabs, activeTab, onChange }) {
   return (
-    <div className="flex justify-center gap-3 mt-4">
+    <div className="flex justify-center gap-3 mt-6">
       {tabs.map((t) => (
         <button
           key={t}
