@@ -5,12 +5,11 @@ import SearchBar from './components/SearchBar';
 import ItemCard from './components/ItemCard';
 import ProfitCard from './components/ProfitCard';
 
-// helper: prettify slug -> Title Case and small reordering for common patterns
+// prettify helper
 function prettifySlug(slug) {
   if (!slug) return '';
   const parts = slug.replace(/[-]/g, '_').split('_').filter(Boolean);
   const words = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1));
-  // small rule: if one of the words is 'Wood' and not first, move 'Wood' to front
   const wIdx = words.findIndex(w => w.toLowerCase() === 'wood');
   if (wIdx > 0) {
     const wood = words.splice(wIdx,1)[0];
@@ -20,15 +19,16 @@ function prettifySlug(slug) {
 }
 
 export default function Page() {
-  const [activeTab, setActiveTab] = useState('Buy'); // 'Buy' | 'Sell' | 'Profit'
+  const [activeTab, setActiveTab] = useState('Buy');
   const [rawData, setRawData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expanded, setExpanded] = useState({});
-  const [allItemsFlat, setAllItemsFlat] = useState([]); // for search suggestions
+  const [expandedCats, setExpandedCats] = useState({});
+  const [allItemsFlat, setAllItemsFlat] = useState([]);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const [cacheTs, setCacheTs] = useState(0);
 
-  // fetch function with simple client-side caching (TTL 45s)
+  // fetch with client cache TTL 45s
   const fetchData = async (force=false) => {
     try {
       setLoading(true);
@@ -41,7 +41,6 @@ export default function Page() {
       const res = await fetch('https://api.nomstead.com/open/marketplace');
       if (!res.ok) throw new Error('API returned ' + res.status);
       const data = await res.json();
-      // data has toBuy and toSell arrays
       setRawData(data);
       setCacheTs(now);
       setLoading(false);
@@ -55,80 +54,74 @@ export default function Page() {
     fetchData();
   }, []);
 
-  // transform raw data into grouped structure
+  // auto-refresh effect
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => fetchData(true), 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [autoRefresh]);
+
+  // grouped data
   const grouped = useMemo(() => {
     if (!rawData) return {};
-    // build map slug -> item object {slug,name,category,subCategory,image,buyOffers[],sellOffers[]}
     const map = {};
-    const addEntry = (entry, type) => {
+    const add = (entry, type) => {
       const obj = entry.object || {};
-      const slug = obj.slug || (entry.object && entry.object.slug) || 'unknown';
-      const key = slug;
-      if (!map[key]) {
-        map[key] = {
-          slug: key,
-          name: prettifySlug(key),
+      const slug = obj.slug || 'unknown';
+      if (!map[slug]) {
+        map[slug] = {
+          slug,
+          name: prettifySlug(slug),
           category: obj.category || 'Misc',
-          subCategory: obj.subCategory || '',
+          subCategory: obj.subCategory || 'General',
           image: obj.imageUrl || obj.thumbnailImageUrl || '',
           buyOffers: [],
           sellOffers: []
         };
       }
-      const target = {
-        unitPrice: entry.pricing?.unitPrice ?? 0,
-        quantity: (type === 'buy') ? (entry.pricing?.availableQuantity ?? 0) : (entry.pricing?.desiredQuantity ?? 0),
+      const offer = {
+        unitPrice: Number(entry.pricing?.unitPrice ?? 0),
+        quantity: type === 'buy' ? Number(entry.pricing?.availableQuantity ?? 0) : Number(entry.pricing?.desiredQuantity ?? 0),
         kingdomUrl: entry.tile?.url || '#',
-        kingdomName: entry.tile?.owner || (entry.tile?.owner ?? 'kingdom')
+        kingdomName: entry.tile?.owner || entry.tile?.owner || 'kingdom'
       };
-      if (type === 'buy') map[key].buyOffers.push(target);
-      else map[key].sellOffers.push(target);
+      if (type === 'buy') map[slug].buyOffers.push(offer);
+      else map[slug].sellOffers.push(offer);
     };
 
-    (rawData.toBuy || []).forEach(e => addEntry(e, 'buy'));
-    (rawData.toSell || []).forEach(e => addEntry(e, 'sell'));
+    (rawData.toBuy || []).forEach(e => add(e, 'buy'));
+    (rawData.toSell || []).forEach(e => add(e, 'sell'));
 
-    // group by category -> subcategory
-    const groupedByCategory = {};
-    Object.values(map).forEach(item => {
-      const cat = item.category || 'Misc';
-      const sub = item.subCategory || 'General';
-      if (!groupedByCategory[cat]) groupedByCategory[cat] = {};
-      if (!groupedByCategory[cat][sub]) groupedByCategory[cat][sub] = [];
-      groupedByCategory[cat][sub].push(item);
+    const groupedByCat = {};
+    Object.values(map).forEach(it => {
+      const cat = it.category || 'Misc';
+      const sub = it.subCategory || 'General';
+      if (!groupedByCat[cat]) groupedByCat[cat] = {};
+      if (!groupedByCat[cat][sub]) groupedByCat[cat][sub] = [];
+      groupedByCat[cat][sub].push(it);
     });
 
-    // build flat list for suggestions
-    const flat = Object.values(map).map(it => ({
-      slug: it.slug,
-      name: it.name,
-      category: it.category,
-      subCategory: it.subCategory,
-      image: it.image
-    }));
-
+    // flat list for suggestions
+    const flat = Object.values(map).map(it => ({ slug: it.slug, name: it.name, category: it.category, subCategory: it.subCategory, image: it.image }));
     setAllItemsFlat(flat);
-    return groupedByCategory;
+
+    return groupedByCat;
   }, [rawData]);
 
-  // compute profit items list
+  // profit lists for Buy low & Sell high
   const profitItems = useMemo(() => {
-    if (!rawData) return [];
-    const items = [];
-    const entries = Object.values(grouped).flatMap(cat => Object.values(cat)).flat();
-    // Actually grouped is {cat:{sub: [items]}} so flatten properly
+    if (!grouped) return [];
     const flat = [];
     Object.keys(grouped).forEach(cat => {
       Object.keys(grouped[cat]).forEach(sub => {
         grouped[cat][sub].forEach(it => flat.push(it));
       });
     });
+    const items = [];
     flat.forEach(it => {
-      const buys = (it.buyOffers || []).map(b => ({...b, unitPrice: Number(b.unitPrice)}));
-      const sells = (it.sellOffers || []).map(s => ({...s, unitPrice: Number(s.unitPrice)}));
-      if (!buys.length || !sells.length) return;
-      const lowestBuy = buys.reduce((a,b) => a.unitPrice <= b.unitPrice ? a : b);
-      const highestSell = sells.reduce((a,b) => a.unitPrice >= b.unitPrice ? a : b);
+      if (!(it.buyOffers?.length) || !(it.sellOffers?.length)) return;
+      const lowestBuy = it.buyOffers.reduce((a,b) => a.unitPrice <= b.unitPrice ? a : b);
+      const highestSell = it.sellOffers.reduce((a,b) => a.unitPrice >= b.unitPrice ? a : b);
       const profit = highestSell.unitPrice - lowestBuy.unitPrice;
       if (profit > 0) {
         items.push({
@@ -146,72 +139,62 @@ export default function Page() {
         });
       }
     });
-    return items.sort((a,b) => (b.profitPerUnit - a.profitPerUnit));
-  }, [rawData, grouped]);
+    return items.sort((a,b) => b.profitPerUnit - a.profitPerUnit);
+  }, [grouped]);
 
-  // Expand / collapse helpers
-  const expandAll = () => {
-    const next = {};
-    Object.keys(grouped).forEach(cat => { next[cat] = true; });
-    setExpanded(next);
-  };
-  const collapseAll = () => setExpanded({});
-
-  // build a small flat list for ItemCard mapping when showing a tab
-  const listForTab = (tab) => {
-    // tab: 'Buy' | 'Sell'
-    const result = [];
+  // Craft & Sell top 10 (highest sell prices)
+  const craftSellTop10 = useMemo(() => {
+    if (!grouped) return [];
+    const flat = [];
     Object.keys(grouped).forEach(cat => {
       Object.keys(grouped[cat]).forEach(sub => {
-        grouped[cat][sub].forEach(it => {
-          // for each item, set viewType info
-          const itemCopy = {
-            slug: it.slug,
-            name: it.name,
-            image: it.image,
-            category: it.category,
-            subCategory: it.subCategory,
-            buyOffers: it.buyOffers,
-            sellOffers: it.sellOffers
-          };
-          result.push(itemCopy);
-        });
+        grouped[cat][sub].forEach(it => flat.push(it));
       });
     });
-    // For Buy tab sort by lowest unitPrice among buyOffers ascending
-    if (tab === 'Buy') {
-      result.sort((a,b) => {
-        const aMin = a.buyOffers?.length ? Math.min(...a.buyOffers.map(x=>Number(x.unitPrice))) : Infinity;
-        const bMin = b.buyOffers?.length ? Math.min(...b.buyOffers.map(x=>Number(x.unitPrice))) : Infinity;
-        return aMin - bMin;
+    const list = [];
+    flat.forEach(it => {
+      const sells = (it.sellOffers || []).map(s => ({...s}));
+      if (!sells.length) return;
+      const highestSell = sells.reduce((a,b) => a.unitPrice >= b.unitPrice ? a : b);
+      list.push({
+        slug: it.slug,
+        name: it.name,
+        highestSellPrice: highestSell.unitPrice,
+        highestSellQty: highestSell.quantity,
+        highestSellName: highestSell.kingdomName,
+        highestSellLink: highestSell.kingdomUrl,
+        image: it.image
       });
-    } else {
-      // Sell: sort by highest sellOffers unitPrice descending
-      result.sort((a,b) => {
-        const aMax = a.sellOffers?.length ? Math.max(...a.sellOffers.map(x=>Number(x.unitPrice))) : -Infinity;
-        const bMax = b.sellOffers?.length ? Math.max(...b.sellOffers.map(x=>Number(x.unitPrice))) : -Infinity;
-        return bMax - aMax;
-      });
-    }
-    return result;
-  };
+    });
+    // sort desc and take top 10
+    list.sort((a,b) => b.highestSellPrice - a.highestSellPrice);
+    return list.slice(0, 10);
+  }, [grouped]);
 
-  // handle manual refresh
+  const expandAll = () => {
+    const next = {};
+    Object.keys(grouped).forEach(cat => next[cat] = true);
+    setExpandedCats(next);
+  };
+  const collapseAll = () => setExpandedCats({});
+
   const handleRefresh = () => fetchData(true);
 
-  // render
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col items-center gap-3">
-        <SearchBar allItems={allItemsFlat} />
+    <div className="space-y-6 pb-12">
+      <div className="flex flex-col items-center gap-4">
+        <SearchBar allItemsFlat={allItemsFlat} />
         <div className="flex gap-3 items-center">
           <button onClick={handleRefresh} className="px-3 py-2 bg-white border rounded">Refresh</button>
+          <button onClick={() => setAutoRefresh(a => !a)} className={`px-3 py-2 rounded ${autoRefresh ? 'bg-green-100' : 'bg-gray-100'}`}>
+            Auto refresh {autoRefresh ? 'on' : 'off'}
+          </button>
           <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
           <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
         </div>
       </div>
 
-      <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} onChange={(t)=>setActiveTab(t)} />
+      <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} onChange={setActiveTab} />
 
       {loading && <div className="text-center text-gray-600">Loading marketplace...</div>}
       {error && (
@@ -225,22 +208,69 @@ export default function Page() {
       )}
 
       {!loading && !error && activeTab === 'Profit' && (
-        <div className="grid grid-cols-1 gap-4">
-          {profitItems.length === 0 ? (
-            <div className="text-center text-gray-600">No items with profit at the moment.</div>
-          ) : (
-            profitItems.map(p => <ProfitCard key={p.slug} item={{
-              name: p.name,
-              buyName: p.buyName,
-              buyLink: p.buyLink,
-              buyPrice: p.buyPrice,
-              buyQty: p.buyQty,
-              sellName: p.sellName,
-              sellLink: p.sellLink,
-              sellPrice: p.sellPrice,
-              sellQty: p.sellQty
-            }} />)
-          )}
+        <div className="space-y-6">
+          {/* Buy low & Sell high section */}
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Buy low & Sell high</h2>
+              <div className="text-sm text-gray-500">{profitItems.length} items</div>
+            </div>
+            <div className="mt-4">
+              {profitItems.length === 0 ? (
+                <div className="text-center text-gray-600">No items with profit at the moment.</div>
+              ) : (
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {profitItems.map(p => (
+                    <ProfitCard key={p.slug} item={{
+                      name: p.name,
+                      buyName: p.buyName,
+                      buyLink: p.buyLink,
+                      buyPrice: p.buyPrice,
+                      buyQty: p.buyQty,
+                      sellName: p.sellName,
+                      sellLink: p.sellLink,
+                      sellPrice: p.sellPrice,
+                      sellQty: p.sellQty
+                    }} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Craft & Sell section */}
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Craft & Sell</h2>
+              <div className="text-sm text-gray-500">{craftSellTop10.length} items</div>
+            </div>
+
+            <div className="mt-4">
+              {craftSellTop10.length === 0 ? (
+                <div className="text-center text-gray-600">No sell items found.</div>
+              ) : (
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {craftSellTop10.map(it => (
+                    <div key={it.slug} className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
+                      <div className="flex gap-3 items-start">
+                        <img src={it.image || '/placeholder.png'} alt={it.name} className="w-20 h-16 object-cover rounded"/>
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{it.name}</h3>
+                          <div className="text-sm text-gray-600 mt-1">
+                            Sell to: <a href={it.highestSellLink} target="_blank" rel="noreferrer" className="text-blue-600 underline">{it.highestSellName || 'kingdom'}</a>
+                          </div>
+                          <div className="text-sm text-gray-700 mt-2">
+                            Unit Price: <span className="font-medium">{Number(it.highestSellPrice).toFixed(4)}</span> gold
+                          </div>
+                          <div className="text-sm text-gray-600">Qty: {it.highestSellQty}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -249,13 +279,16 @@ export default function Page() {
           {Object.keys(grouped).map(cat => (
             <div key={cat} className="bg-white rounded-lg p-4 shadow-sm">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold cursor-pointer" onClick={() => setExpanded(prev => ({...prev, [cat]: !prev[cat]}))}>
-                  {expanded[cat] ? '▼' : '▶'} {cat}
+                <h2
+                  className="text-xl font-semibold cursor-pointer select-none"
+                  onClick={() => setExpandedCats(prev => ({...prev, [cat]: !prev[cat]}))}
+                >
+                  {expandedCats[cat] ? '▼' : '▶'} {cat}
                 </h2>
                 <div className="text-sm text-gray-500">{Object.keys(grouped[cat]).length} subcategories</div>
               </div>
 
-              {expanded[cat] && (
+              {expandedCats[cat] && (
                 <div className="mt-4 space-y-4">
                   {Object.keys(grouped[cat]).map(sub => (
                     <div key={sub}>
@@ -266,9 +299,7 @@ export default function Page() {
 
                       <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                         {grouped[cat][sub].map(it => (
-                          <div key={it.slug}>
-                            <ItemCard item={it} viewType={activeTab.toLowerCase()} />
-                          </div>
+                          <ItemCard key={it.slug} item={it} viewType={activeTab.toLowerCase()} />
                         ))}
                       </div>
                     </div>
@@ -279,7 +310,6 @@ export default function Page() {
           ))}
         </div>
       )}
-
     </div>
   );
 }
