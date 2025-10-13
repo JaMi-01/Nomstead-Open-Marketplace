@@ -2,9 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Tabs from './components/Tabs';
-import ItemCard from './components/ItemCard';
+import dynamic from 'next/dynamic';
 import SearchBar from './components/SearchBar';
 import Loader from './components/Loader';
+
+const ItemCard = dynamic(() => import('./components/ItemCard'), { ssr: false });
 
 function prettifySlug(slug) {
   if (!slug) return '';
@@ -73,7 +75,7 @@ export default function SearchResults() {
       </div>
 
       <div className="flex justify-center">
-        <button onClick={() => router.push('/')} className="px-3 py-2 bg-white border rounded">Back to homepage</button>
+        <button onClick={() => router.push('/')} className="px-3 py-2 bg-white border rounded">← Back to homepage</button>
       </div>
 
       <Tabs tabs={['Buy','Sell']} activeTab={activeTab} onChange={setActiveTab} />
