@@ -7,20 +7,14 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        nomBuy: {
-          DEFAULT: '#047857',
-          light: '#34d399'
-        },
-        nomSell: {
-          DEFAULT: '#92400e',
-          light: '#fcd34d'
-        },
-        nomProfit: {
-          DEFAULT: '#cfe8ff',
-          dark: '#3b82f6'
-        }
+        nomBuy: '#047857',
+        nomBuyLight: '#34d399',
+        nomSell: '#92400e',
+        nomSellLight: '#fcd34d',
+        nomProfitLight: '#cfe8ff',
+        nomProfit: '#0ea5e9'
       }
     }
   },
   plugins: []
-}
+};
