@@ -1,9 +1,13 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Tabs from './components/Tabs';
 import SearchBar from './components/SearchBar';
-import ItemCard from './components/ItemCard';
-import ProfitCard from './components/ProfitCard';
+import Loader from './components/Loader';
+const ItemCard = dynamic(() => import('./components/ItemCard'), { ssr: false });
+const ProfitCard = dynamic(() => import('./components/ProfitCard'), { ssr: false });
+
+const API_URL = process.env.NEXT_PUBLIC_NOMSTEAD_API || 'https://api.nomstead.com/open/marketplace';
 
 // prettify helper
 function prettifySlug(slug) {
@@ -24,25 +28,30 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedCats, setExpandedCats] = useState({});
+  const [cacheTs, setCacheTs] = useState(0);
   const [allItemsFlat, setAllItemsFlat] = useState([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [cacheTs, setCacheTs] = useState(0);
 
-  // fetch with client cache TTL 45s
-  const fetchData = async (force=false) => {
+  // fetch with caching
+  const fetchData = async (force = false) => {
     try {
       setLoading(true);
       setError(null);
       const now = Date.now();
-      if (!force && rawData && (now - cacheTs) < 45000) {
+      const cache = JSON.parse(localStorage.getItem('nom_cache') || 'null');
+      if (!force && cache && (now - cache.ts < 15 * 60 * 1000)) {
+        setRawData(cache.data);
+        setCacheTs(cache.ts);
         setLoading(false);
         return;
       }
-      const res = await fetch('https://api.nomstead.com/open/marketplace');
+
+      const res = await fetch(API_URL);
       if (!res.ok) throw new Error('API returned ' + res.status);
       const data = await res.json();
       setRawData(data);
       setCacheTs(now);
+      localStorage.setItem('nom_cache', JSON.stringify({ ts: now, data }));
       setLoading(false);
     } catch (e) {
       setError(e.message || 'Unknown error');
@@ -50,18 +59,16 @@ export default function Page() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // auto-refresh effect
+  // auto-refresh interval
   useEffect(() => {
     if (!autoRefresh) return;
     const id = setInterval(() => fetchData(true), 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [autoRefresh]);
 
-  // grouped data
+  // transform grouping
   const grouped = useMemo(() => {
     if (!rawData) return {};
     const map = {};
@@ -83,7 +90,7 @@ export default function Page() {
         unitPrice: Number(entry.pricing?.unitPrice ?? 0),
         quantity: type === 'buy' ? Number(entry.pricing?.availableQuantity ?? 0) : Number(entry.pricing?.desiredQuantity ?? 0),
         kingdomUrl: entry.tile?.url || '#',
-        kingdomName: entry.tile?.owner || entry.tile?.owner || 'kingdom'
+        kingdomName: entry.tile?.owner || 'kingdom'
       };
       if (type === 'buy') map[slug].buyOffers.push(offer);
       else map[slug].sellOffers.push(offer);
@@ -101,14 +108,16 @@ export default function Page() {
       groupedByCat[cat][sub].push(it);
     });
 
-    // flat list for suggestions
-    const flat = Object.values(map).map(it => ({ slug: it.slug, name: it.name, category: it.category, subCategory: it.subCategory, image: it.image }));
+    // flat for suggestions
+    const flat = Object.values(map).map(it => ({
+      slug: it.slug, name: it.name, category: it.category, subCategory: it.subCategory, image: it.image
+    }));
     setAllItemsFlat(flat);
 
     return groupedByCat;
   }, [rawData]);
 
-  // profit lists for Buy low & Sell high
+  // profit items (buy low sell high)
   const profitItems = useMemo(() => {
     if (!grouped) return [];
     const flat = [];
@@ -142,8 +151,8 @@ export default function Page() {
     return items.sort((a,b) => b.profitPerUnit - a.profitPerUnit);
   }, [grouped]);
 
-  // Craft & Sell top 10 (highest sell prices)
-  const craftSellTop10 = useMemo(() => {
+  // craft & sell top 100 (highest sell)
+  const craftSellTop = useMemo(() => {
     if (!grouped) return [];
     const flat = [];
     Object.keys(grouped).forEach(cat => {
@@ -166,11 +175,11 @@ export default function Page() {
         image: it.image
       });
     });
-    // sort desc and take top 10
     list.sort((a,b) => b.highestSellPrice - a.highestSellPrice);
-    return list.slice(0, 10);
+    return list.slice(0, 100);
   }, [grouped]);
 
+  // expand/collapse helpers
   const expandAll = () => {
     const next = {};
     Object.keys(grouped).forEach(cat => next[cat] = true);
@@ -178,14 +187,12 @@ export default function Page() {
   };
   const collapseAll = () => setExpandedCats({});
 
-  const handleRefresh = () => fetchData(true);
-
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col items-center gap-4">
         <SearchBar allItemsFlat={allItemsFlat} />
         <div className="flex gap-3 items-center">
-          <button onClick={handleRefresh} className="px-3 py-2 bg-white border rounded">Refresh</button>
+          <button onClick={() => fetchData(true)} className="px-3 py-2 bg-white border rounded">Refresh</button>
           <button onClick={() => setAutoRefresh(a => !a)} className={`px-3 py-2 rounded ${autoRefresh ? 'bg-green-100' : 'bg-gray-100'}`}>
             Auto refresh {autoRefresh ? 'on' : 'off'}
           </button>
@@ -196,20 +203,21 @@ export default function Page() {
 
       <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} onChange={setActiveTab} />
 
-      {loading && <div className="text-center text-gray-600">Loading marketplace...</div>}
+      {loading && <Loader />}
+
       {error && (
         <div className="bg-red-50 border border-red-200 p-4 rounded">
           <div className="font-semibold text-red-700">Error loading marketplace</div>
           <div className="text-sm text-red-600">{error}</div>
           <div className="mt-2">
-            <button onClick={handleRefresh} className="px-3 py-2 bg-red-100 rounded">Retry</button>
+            <button onClick={() => fetchData(true)} className="px-3 py-2 bg-red-100 rounded">Retry</button>
           </div>
         </div>
       )}
 
       {!loading && !error && activeTab === 'Profit' && (
         <div className="space-y-6">
-          {/* Buy low & Sell high section */}
+          {/* Buy low & Sell high */}
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Buy low & Sell high</h2>
@@ -222,15 +230,10 @@ export default function Page() {
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {profitItems.map(p => (
                     <ProfitCard key={p.slug} item={{
+                      slug: p.slug,
                       name: p.name,
-                      buyName: p.buyName,
-                      buyLink: p.buyLink,
-                      buyPrice: p.buyPrice,
-                      buyQty: p.buyQty,
-                      sellName: p.sellName,
-                      sellLink: p.sellLink,
-                      sellPrice: p.sellPrice,
-                      sellQty: p.sellQty
+                      buyOffers: [{ unitPrice: p.buyPrice, quantity: p.buyQty, kingdomName: p.buyName, kingdomUrl: p.buyLink }],
+                      sellOffers: [{ unitPrice: p.sellPrice, quantity: p.sellQty, kingdomName: p.sellName, kingdomUrl: p.sellLink }]
                     }} />
                   ))}
                 </div>
@@ -238,19 +241,18 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Craft & Sell section */}
+          {/* Craft & Sell */}
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Craft & Sell</h2>
-              <div className="text-sm text-gray-500">{craftSellTop10.length} items</div>
+              <div className="text-sm text-gray-500">{craftSellTop.length} items</div>
             </div>
-
             <div className="mt-4">
-              {craftSellTop10.length === 0 ? (
+              {craftSellTop.length === 0 ? (
                 <div className="text-center text-gray-600">No sell items found.</div>
               ) : (
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {craftSellTop10.map(it => (
+                  {craftSellTop.map(it => (
                     <div key={it.slug} className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
                       <div className="flex gap-3 items-start">
                         <img src={it.image || '/placeholder.png'} alt={it.name} className="w-20 h-16 object-cover rounded"/>
@@ -293,15 +295,22 @@ export default function Page() {
                   {Object.keys(grouped[cat]).map(sub => (
                     <div key={sub}>
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium">{sub}</h3>
+                        <h3 className="text-lg font-medium cursor-pointer" onClick={() => {
+                          // toggle subcategory expand via state keyed by cat + sub
+                          setExpandedCats(prev => ({ ...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`] }));
+                        }}>
+                          {sub}
+                        </h3>
                         <div className="text-sm text-gray-500">{grouped[cat][sub].length} items</div>
                       </div>
 
-                      <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                        {grouped[cat][sub].map(it => (
-                          <ItemCard key={it.slug} item={it} viewType={activeTab.toLowerCase()} />
-                        ))}
-                      </div>
+                      {expandedCats[`${cat}__${sub}`] && (
+                        <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                          {grouped[cat][sub].map(it => (
+                            <ItemCard key={it.slug} item={it} viewType={activeTab.toLowerCase()} />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -310,6 +319,7 @@ export default function Page() {
           ))}
         </div>
       )}
+
     </div>
   );
 }
