@@ -4,12 +4,12 @@ import dynamic from 'next/dynamic';
 import Tabs from './components/Tabs';
 import SearchBar from './components/SearchBar';
 import Loader from './components/Loader';
+
 const ItemCard = dynamic(() => import('./components/ItemCard'), { ssr: false });
 const ProfitCard = dynamic(() => import('./components/ProfitCard'), { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_NOMSTEAD_API || 'https://api.nomstead.com/open/marketplace';
 
-// prettify helper
 function prettifySlug(slug) {
   if (!slug) return '';
   const parts = slug.replace(/[-]/g, '_').split('_').filter(Boolean);
@@ -32,7 +32,6 @@ export default function Page() {
   const [allItemsFlat, setAllItemsFlat] = useState([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  // fetch with caching
   const fetchData = async (force = false) => {
     try {
       setLoading(true);
@@ -61,14 +60,12 @@ export default function Page() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // auto-refresh interval
   useEffect(() => {
     if (!autoRefresh) return;
     const id = setInterval(() => fetchData(true), 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [autoRefresh]);
 
-  // transform grouping
   const grouped = useMemo(() => {
     if (!rawData) return {};
     const map = {};
@@ -108,16 +105,11 @@ export default function Page() {
       groupedByCat[cat][sub].push(it);
     });
 
-    // flat for suggestions
-    const flat = Object.values(map).map(it => ({
-      slug: it.slug, name: it.name, category: it.category, subCategory: it.subCategory, image: it.image
-    }));
+    const flat = Object.values(map).map(it => ({ slug: it.slug, name: it.name, category: it.category, subCategory: it.subCategory, image: it.image }));
     setAllItemsFlat(flat);
-
     return groupedByCat;
   }, [rawData]);
 
-  // profit items (buy low sell high)
   const profitItems = useMemo(() => {
     if (!grouped) return [];
     const flat = [];
@@ -129,6 +121,7 @@ export default function Page() {
     const items = [];
     flat.forEach(it => {
       if (!(it.buyOffers?.length) || !(it.sellOffers?.length)) return;
+      // ensure both offers refer to the same slug and prefer same type - grouping by slug already ensures same item
       const lowestBuy = it.buyOffers.reduce((a,b) => a.unitPrice <= b.unitPrice ? a : b);
       const highestSell = it.sellOffers.reduce((a,b) => a.unitPrice >= b.unitPrice ? a : b);
       const profit = highestSell.unitPrice - lowestBuy.unitPrice;
@@ -136,14 +129,8 @@ export default function Page() {
         items.push({
           slug: it.slug,
           name: it.name,
-          buyName: lowestBuy.kingdomName,
-          buyLink: lowestBuy.kingdomUrl,
-          buyPrice: lowestBuy.unitPrice,
-          buyQty: lowestBuy.quantity,
-          sellName: highestSell.kingdomName,
-          sellLink: highestSell.kingdomUrl,
-          sellPrice: highestSell.unitPrice,
-          sellQty: highestSell.quantity,
+          buyOffers: it.buyOffers,
+          sellOffers: it.sellOffers,
           profitPerUnit: profit
         });
       }
@@ -151,7 +138,6 @@ export default function Page() {
     return items.sort((a,b) => b.profitPerUnit - a.profitPerUnit);
   }, [grouped]);
 
-  // craft & sell top 100 (highest sell)
   const craftSellTop = useMemo(() => {
     if (!grouped) return [];
     const flat = [];
@@ -162,7 +148,7 @@ export default function Page() {
     });
     const list = [];
     flat.forEach(it => {
-      const sells = (it.sellOffers || []).map(s => ({...s}));
+      const sells = (it.sellOffers || []).slice();
       if (!sells.length) return;
       const highestSell = sells.reduce((a,b) => a.unitPrice >= b.unitPrice ? a : b);
       list.push({
@@ -179,7 +165,6 @@ export default function Page() {
     return list.slice(0, 100);
   }, [grouped]);
 
-  // expand/collapse helpers
   const expandAll = () => {
     const next = {};
     Object.keys(grouped).forEach(cat => next[cat] = true);
@@ -229,12 +214,7 @@ export default function Page() {
               ) : (
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {profitItems.map(p => (
-                    <ProfitCard key={p.slug} item={{
-                      slug: p.slug,
-                      name: p.name,
-                      buyOffers: [{ unitPrice: p.buyPrice, quantity: p.buyQty, kingdomName: p.buyName, kingdomUrl: p.buyLink }],
-                      sellOffers: [{ unitPrice: p.sellPrice, quantity: p.sellQty, kingdomName: p.sellName, kingdomUrl: p.sellLink }]
-                    }} />
+                    <ProfitCard key={p.slug} item={p} />
                   ))}
                 </div>
               )}
@@ -282,10 +262,10 @@ export default function Page() {
             <div key={cat} className="bg-white rounded-lg p-4 shadow-sm">
               <div className="flex justify-between items-center">
                 <h2
-                  className="text-xl font-semibold cursor-pointer select-none"
+                  className="text-xl font-semibold flex items-center gap-2 cursor-pointer select-none"
                   onClick={() => setExpandedCats(prev => ({...prev, [cat]: !prev[cat]}))}
                 >
-                  {expandedCats[cat] ? '▼' : '▶'} {cat}
+                  <span className={expandedCats[cat] ? 'rotate-90' : 'rotate-0'}>▶</span> {cat}
                 </h2>
                 <div className="text-sm text-gray-500">{Object.keys(grouped[cat]).length} subcategories</div>
               </div>
@@ -295,11 +275,11 @@ export default function Page() {
                   {Object.keys(grouped[cat]).map(sub => (
                     <div key={sub}>
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium cursor-pointer" onClick={() => {
-                          // toggle subcategory expand via state keyed by cat + sub
-                          setExpandedCats(prev => ({ ...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`] }));
-                        }}>
-                          {sub}
+                        <h3
+                          className="text-lg font-medium flex items-center gap-2 cursor-pointer"
+                          onClick={() => setExpandedCats(prev => ({ ...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`] }))}
+                        >
+                          <span className={expandedCats[`${cat}__${sub}`] ? 'rotate-90' : 'rotate-0'}>▶</span> {sub}
                         </h3>
                         <div className="text-sm text-gray-500">{grouped[cat][sub].length} items</div>
                       </div>
