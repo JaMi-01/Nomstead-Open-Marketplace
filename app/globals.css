@@ -2,27 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* small visual tweaks */
-html, body, #__next {
-  height: 100%;
-}
+/* layout helpers */
+html, body, #__next { height: 100%; }
 
-/* ensure the search suggestions sit above other content */
-.suggestion-list {
-  z-index: 60;
-}
+/* suggestion list above other elements */
+.suggestion-list { z-index: 60; }
 
-/* subtle card hover */
+/* card hover */
 .card-hover {
   transition: transform .14s ease, box-shadow .14s ease;
 }
 .card-hover:hover {
-  transform: translateY(-6px) scale(1.01);
+  transform: translateY(-6px);
   box-shadow: 0 12px 30px rgba(16,24,40,0.08);
 }
 
-/* collapsed/expanded transition - simple smoothness */
-.collapse {
-  transition: max-height 0.18s ease, opacity 0.18s ease;
-  overflow: hidden;
-}
+/* collapse animation */
+.rotate-0 { transform: rotate(0deg); transition: transform .18s ease; }
+.rotate-90 { transform: rotate(90deg); transition: transform .18s ease; }
+
+/* smaller icons inside cards */
+.item-icon { width: 36px; height: 36px; }
+
+/* sticky search */
+.sticky-top { position: sticky; top: 1.5rem; z-index: 50; }
