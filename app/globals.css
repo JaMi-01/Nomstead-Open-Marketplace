@@ -14,14 +14,15 @@ html, body, #__next {
 
 /* subtle card hover */
 .card-hover {
-  transition: transform .12s ease, box-shadow .12s ease;
+  transition: transform .14s ease, box-shadow .14s ease;
 }
 .card-hover:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 10px 30px rgba(16,24,40,0.08);
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 12px 30px rgba(16,24,40,0.08);
 }
 
-/* collapsed/expanded transition */
-.collapse-enter {
-  transition: max-height 0.18s ease;
+/* collapsed/expanded transition - simple smoothness */
+.collapse {
+  transition: max-height 0.18s ease, opacity 0.18s ease;
+  overflow: hidden;
 }
