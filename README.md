@@ -22,4 +22,4 @@ Uses the public Nomstead marketplace endpoint:
 `https://api.nomstead.com/open/marketplace`
 
 ## Version
-v3.5
+v3.6
