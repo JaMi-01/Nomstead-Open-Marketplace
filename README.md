@@ -1,27 +1,25 @@
-# Nomstead Open Marketplace — Version 3.1
+# Nomstead Open Marketplace — Version 3.5
 
-Nomstead Open Marketplace is a clean and friendly web viewer for Nomstead marketplace data. It visualizes buy and sell offers across kingdoms and surfaces profitable opportunities.
+A fast and beautiful web marketplace built with Next.js and Tailwind CSS for tracking Nomstead game market offers.
 
 ## Highlights
-- Smart search with live suggestions
 - Buy / Sell / Profit tabs (homepage)
-- Profit tab split: Buy low & Sell high, and Craft & Sell (top 10)
+- Profit tab split: Buy low & Sell high, and Craft & Sell (top 100)
 - Foldable categories and subcategories with Expand All / Collapse All
-- Item cards showing image, unit price (in **gold**), available quantity and bulk calculator (default = 1)
-- Profit cards showing best buy → best sell opportunity
-- Refresh to load latest data from the Nomstead API
-- Prettified item names (e.g. `plank_wood` → `Wood Plank`)
-- Clean, light UI built with Next.js + Tailwind CSS
+- Smart search with live suggestions and recent searches
+- Bulk calculator under each item card (default = 1)
+- Donation block with copy-to-clipboard
+- Caching and loader for better performance
+- Clean, light UI using Tailwind CSS
 
-## Credits
-Created by: ChatGPT  
-Vision by: JaMi — https://x.com/jamionfire?s=21  
-Build on: https://github.com/JaMi-01/Nomstead-Open-Marketplace  
-Hosted on: Vercel
+## Tech
+- Next.js 14 (App Router)
+- TailwindCSS 3.4.14
+- Deployed on Vercel
 
-## Support
-Support the project here:  
-USDC or ETH on Ethereum, Polygon, Arbitrum, or Immutable zkEVM  
-Network address: `0x139a92c3Cad0CBe6b8F9C6b2365CC31bE164e341`
+## API
+Uses the public Nomstead marketplace endpoint:
+`https://api.nomstead.com/open/marketplace`
 
-**Version**: v3.1
+## Version
+v3.5
