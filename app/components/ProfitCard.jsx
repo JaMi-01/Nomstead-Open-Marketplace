@@ -2,13 +2,12 @@
 import React, { useState } from 'react';
 
 export default function ProfitCard({ item }) {
-  // item: { slug, name, buy, sell, profitPerUnit }
   const [bulk, setBulk] = useState(1);
   const buy = item.buy;
   const sell = item.sell;
   const profitPerUnit = Number(item.profitPerUnit || 0);
   const totalProfit = profitPerUnit * Math.max(1, Number(bulk || 1));
-  const name = prettify(item.buy.object?.slug || item.buy.object?.metadata || item.name);
+  const name = item.name || (buy?.slug || '');
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
@@ -20,18 +19,18 @@ export default function ProfitCard({ item }) {
           <div className="mt-2 text-sm space-y-2">
             <div>
               <strong>Buy from:</strong>{' '}
-              <a href={buy.tile?.url || buy.tile?.url || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                {buy.tile?.owner || buy.tile?.owner || 'kingdom'}
+              <a href={buy.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                {buy.kingdomName || 'seller'}
               </a>{' '}
-              @ <span className="font-medium">{Number(buy.pricing?.unitPrice || 0).toFixed(4)} gold</span> Qty: {buy.pricing?.availableQuantity || 0}
+              @ <span className="font-medium">{Number(buy.unitPrice).toFixed(4)} gold</span> Qty: {buy.quantity}
             </div>
 
             <div>
               <strong>Sell to:</strong>{' '}
-              <a href={sell.tile?.url || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                {sell.tile?.owner || 'kingdom'}
+              <a href={sell.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                {sell.kingdomName || 'buyer'}
               </a>{' '}
-              @ <span className="font-medium">{Number(sell.pricing?.unitPrice || 0).toFixed(4)} gold</span> Qty: {sell.pricing?.desiredQuantity || 0}
+              @ <span className="font-medium">{Number(sell.unitPrice).toFixed(4)} gold</span> Qty: {sell.quantity}
             </div>
 
             <div className="mt-3 flex items-center gap-2">
@@ -54,9 +53,4 @@ export default function ProfitCard({ item }) {
       </div>
     </div>
   );
-}
-
-function prettify(slug) {
-  if (!slug) return '';
-  return slug.replace(/[-]/g,'_').split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
 }
