@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
-import Tabs from './components/Tabs';
 import SearchBar from './components/SearchBar';
+import Tabs from './components/Tabs';
 import Loader from './components/Loader';
 import ItemCard from './components/ItemCard';
 import ProfitCard from './components/ProfitCard';
@@ -10,8 +10,7 @@ const API = process.env.NEXT_PUBLIC_NOMSTEAD_API || 'https://api.nomstead.com/op
 
 function prettify(slug) {
   if (!slug) return '';
-  // replace underscores/hyphens, capitalize words, move 'Wood' to front if present
-  const parts = slug.replace(/-/g,'_').split('_').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1));
+  const parts = slug.replace(/[-]/g,'_').split('_').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1));
   const idx = parts.findIndex(p => p.toLowerCase() === 'wood');
   if (idx > 0) {
     const wood = parts.splice(idx,1)[0];
@@ -21,11 +20,29 @@ function prettify(slug) {
 }
 
 export default function HomePage() {
-  const [raw, setRaw] = useState(null);
-  const [activeTab, setActiveTab] = useState('Buy');
+  const [raw, setRaw] = useState({ toBuy: [], toSell: [] });
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Buy');
   const [expanded, setExpanded] = useState({});
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function fetchData(force = false) {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(API);
+      if (!res.ok) throw new Error('API ' + res.status);
+      const j = await res.json();
+      setRaw({ toBuy: j.toBuy || [], toSell: j.toSell || [] });
+    } catch (e) {
+      console.error(e);
+      setError('Could not fetch marketplace data.');
+      setRaw({ toBuy: [], toSell: [] });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     fetchData();
@@ -33,32 +50,16 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = setInterval(() => fetchData(), 5*60*1000);
+    const id = setInterval(() => fetchData(true), 5*60*1000);
     return () => clearInterval(id);
   }, [autoRefresh]);
 
-  async function fetchData() {
-    try {
-      setLoading(true);
-      const res = await fetch(API);
-      if (!res.ok) throw new Error('API ' + res.status);
-      const j = await res.json();
-      setRaw(j);
-    } catch (e) {
-      console.error(e);
-      setRaw({ toBuy: [], toSell: [] });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // group by category -> subCategory -> list of items (merged by slug)
+  // group by slug and category/subcategory
   const grouped = useMemo(() => {
-    if (!raw) return {};
     const map = {};
     const add = (entry, type) => {
       const obj = entry.object || {};
-      const slug = obj.slug || 'unknown';
+      const slug = obj.slug || obj.metadata || 'unknown';
       if (!map[slug]) {
         map[slug] = {
           slug,
@@ -87,16 +88,15 @@ export default function HomePage() {
     Object.values(map).forEach(it => {
       const cat = it.category || 'Misc';
       const sub = it.subCategory || 'General';
-      if (!byCat[cat]) byCat[cat] = {};
-      if (!byCat[cat][sub]) byCat[cat][sub] = [];
+      byCat[cat] ??= {};
+      byCat[cat][sub] ??= [];
       byCat[cat][sub].push(it);
     });
     return byCat;
   }, [raw]);
 
-  // profit items (lowest buy vs highest sell for same slug; ensure profit >0)
+  // profit items
   const profitItems = useMemo(() => {
-    if (!grouped) return [];
     const flat = [];
     Object.keys(grouped).forEach(cat => {
       Object.keys(grouped[cat]).forEach(sub => {
@@ -116,7 +116,10 @@ export default function HomePage() {
 
   const expandAll = () => {
     const next = {};
-    Object.keys(grouped).forEach(cat => { next[cat] = true; Object.keys(grouped[cat]).forEach(sub => next[`${cat}__${sub}`] = true); });
+    Object.keys(grouped).forEach(cat => {
+      next[cat] = true;
+      Object.keys(grouped[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
+    });
     setExpanded(next);
   };
   const collapseAll = () => setExpanded({});
@@ -124,9 +127,9 @@ export default function HomePage() {
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col items-center gap-4">
-        <SearchBar allItemsFlat={Object.values(grouped).flatMap(sub => Object.values(sub).flatMap(a=>a))} />
+        <SearchBar allItemsFlat={Object.values(grouped).flatMap(cat => Object.values(cat).flatMap(x=>x))} />
         <div className="flex gap-3 items-center">
-          <button onClick={() => fetchData()} className="px-3 py-2 bg-white border rounded">Refresh</button>
+          <button onClick={() => fetchData(true)} className="px-3 py-2 bg-white border rounded">Refresh</button>
           <button onClick={() => setAutoRefresh(a=>!a)} className={`px-3 py-2 rounded ${autoRefresh ? 'bg-green-100' : 'bg-gray-100'}`}>
             Auto refresh {autoRefresh ? 'on' : 'off'}
           </button>
@@ -135,7 +138,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <Tabs tabs={['Buy','Sell','Profit']} active={activeTab} setActive={setActiveTab} />
+      <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {loading && <Loader />}
 
@@ -193,6 +196,13 @@ export default function HomePage() {
               )}
             </section>
           ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded">
+          <div className="font-semibold text-red-700">Error</div>
+          <div className="text-sm text-red-600">{error}</div>
         </div>
       )}
     </div>
