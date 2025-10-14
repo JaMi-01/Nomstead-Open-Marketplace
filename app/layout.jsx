@@ -18,23 +18,8 @@ export default function RootLayout({ children }) {
         </header>
 
         <div className="max-w-6xl mx-auto px-4 mt-6">
-          <div className="mb-6">
-            <div className="bg-white p-4 rounded-lg shadow-sm text-sm text-gray-600">
-              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                <div>
-                  <div><strong>Created by:</strong> ChatGPT</div>
-                  <div><strong>Vision by:</strong> <a className="text-blue-600 underline" href="https://x.com/jamionfire?s=21" target="_blank" rel="noreferrer">JaMi</a></div>
-                </div>
-                <div>
-                  <div><strong>Build on:</strong> <a className="text-blue-600 underline" href="https://github.com/JaMi-01/Nomstead-Open-Marketplace" target="_blank" rel="noreferrer">GitHub</a></div>
-                  <div><strong>Hosted on:</strong> Vercel</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <DonateSnippet />
-            </div>
+          <div className="mt-4 mb-6">
+            <DonateSnippet />
           </div>
 
           {children}
@@ -42,6 +27,12 @@ export default function RootLayout({ children }) {
 
         <footer className="max-w-6xl mx-auto px-4 mt-10 mb-10 text-center text-xs text-gray-500">
           <div>Nomstead Open Marketplace</div>
+          <div className="mt-3 bg-white p-3 rounded-lg inline-block text-sm text-gray-600">
+            <div><strong>Created by:</strong> ChatGPT</div>
+            <div><strong>Vision by:</strong> <a className="text-blue-600 underline" href="https://x.com/jamionfire?s=21" target="_blank" rel="noreferrer">JaMi</a></div>
+            <div><strong>Build on:</strong> <a className="text-blue-600 underline" href="https://github.com/JaMi-01/Nomstead-Open-Marketplace" target="_blank" rel="noreferrer">GitHub</a></div>
+            <div><strong>Hosted on:</strong> Vercel</div>
+          </div>
         </footer>
       </body>
     </html>
