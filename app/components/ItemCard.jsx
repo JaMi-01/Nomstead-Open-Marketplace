@@ -1,20 +1,6 @@
 'use client';
 import React, { useState } from 'react';
 
-/*
-  Expected item shape when passed:
-  {
-    slug,
-    name,
-    image,
-    category,
-    subCategory,
-    buyOffers: [{ unitPrice, quantity, kingdomName, kingdomUrl }],
-    sellOffers: [...]
-  }
-  viewType: 'buy' | 'sell'
-*/
-
 export default function ItemCard({ item, viewType = 'buy' }) {
   const [qty, setQty] = useState(1);
 
@@ -24,16 +10,17 @@ export default function ItemCard({ item, viewType = 'buy' }) {
 
   if (!offers.length) return null;
 
-  // best offer for quick totals
   const best = offers[0] || { unitPrice: 0, quantity: 0, kingdomName: 'kingdom', kingdomUrl: '#' };
-
-  // fallback image/icon
   const img = item.image || '/placeholder.png';
 
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm card-hover">
       <div className="flex gap-4">
-        <img src={img} alt={item.name} className="w-24 h-20 object-cover rounded"/>
+        {/* icon inside card */}
+        <div className="flex-shrink-0">
+          <img src={img} alt={item.name} className="item-icon rounded" />
+        </div>
+
         <div className="flex-1">
           <div className="flex items-start justify-between">
             <div>
@@ -61,7 +48,7 @@ export default function ItemCard({ item, viewType = 'buy' }) {
             ))}
           </div>
 
-          {/* bulk calc as last line in card */}
+          {/* bulk calculator as last line */}
           <div className="mt-3 flex items-center gap-3">
             <label className="text-sm">Amount</label>
             <input
