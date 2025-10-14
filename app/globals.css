@@ -2,26 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* small helpers */
 html, body, #__next { height: 100%; }
 
-/* suggestion list above other elements */
+.card-hover { transition: transform .14s ease, box-shadow .14s ease; }
+.card-hover:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(16,24,40,0.08); }
+
+.triangle { display:inline-block; transition: transform .18s ease; }
+.triangle.open { transform: rotate(90deg); }
+
+.item-icon { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
 .suggestion-list { z-index: 60; }
-
-/* card hover */
-.card-hover {
-  transition: transform .14s ease, box-shadow .14s ease;
-}
-.card-hover:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 30px rgba(16,24,40,0.08);
-}
-
-/* rotate classes for triangles */
-.rotate-0 { transform: rotate(0deg); transition: transform .18s ease; display:inline-block; }
-.rotate-90 { transform: rotate(90deg); transition: transform .18s ease; display:inline-block; }
-
-/* smaller icons inside cards */
-.item-icon { width: 36px; height: 36px; object-fit: cover; }
-
-/* sticky search */
-.sticky-top { position: sticky; top: 1.25rem; z-index: 50; }
