@@ -2,108 +2,83 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Tabs from '../components/Tabs';
-import dynamic from 'next/dynamic';
-import SearchBar from '../components/SearchBar';
+import ItemCard from '../components/ItemCard';
 import Loader from '../components/Loader';
+import SearchBar from '../components/SearchBar';
 
-const ItemCard = dynamic(() => import('../components/ItemCard'), { ssr: false });
+const API = process.env.NEXT_PUBLIC_NOMSTEAD_API || 'https://api.nomstead.com/open/marketplace';
 
-function prettifySlug(slug) {
+function prettify(slug) {
   if (!slug) return '';
   return slug.replace(/[-]/g,'_').split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
 }
 
-export default function SearchResultsPage() {
-  const searchParams = useSearchParams();
-  const q = searchParams?.get('q') || '';
-  const [activeTab, setActiveTab] = useState('Buy');
-  const [data, setData] = useState(null);
-  const [filtered, setFiltered] = useState([]);
+export default function SearchResults() {
+  const params = useSearchParams();
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_NOMSTEAD_API || 'https://api.nomstead.com/open/marketplace';
+  const q = params.get('q') || '';
+  const [activeTab, setActiveTab] = useState('Buy');
   const [loading, setLoading] = useState(true);
+  const [filteredBuy, setFilteredBuy] = useState([]);
+  const [filteredSell, setFilteredSell] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetch(API_URL)
-      .then(r => {
-        if (!r.ok) throw new Error('API returned ' + r.status);
-        return r.json();
-      })
-      .then(d => setData(d))
-      .catch((e) => {
-        console.error('Search API error', e);
+    async function fetchAndFilter() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(API);
+        if (!res.ok) throw new Error('API ' + res.status);
+        const j = await res.json();
+        const buy = (j.toBuy || []).filter(i => (i.object?.slug || '').toLowerCase().includes(q.toLowerCase()) || ( (i.object?.slug||'').replace(/_/g,' ').toLowerCase().includes(q.toLowerCase()) ));
+        const sell = (j.toSell || []).filter(i => (i.object?.slug || '').toLowerCase().includes(q.toLowerCase()) || ( (i.object?.slug||'').replace(/_/g,' ').toLowerCase().includes(q.toLowerCase()) ));
+        setFilteredBuy(buy);
+        setFilteredSell(sell);
+      } catch (e) {
+        console.error(e);
         setError('Could not fetch marketplace');
-        setData(null);
-      })
-      .finally(() => setLoading(false));
-  }, [q]);
-
-  useEffect(() => {
-    if (!data) return setFiltered([]);
-    const map = {};
-    const add = (entry, type) => {
-      const slug = entry.object?.slug || 'unknown';
-      if (!map[slug]) {
-        map[slug] = {
-          slug,
-          name: prettifySlug(slug),
-          image: entry.object?.imageUrl || entry.object?.thumbnailImageUrl || '',
-          category: entry.object?.category || 'Misc',
-          subCategory: entry.object?.subCategory || '',
-          buyOffers: [],
-          sellOffers: []
-        };
+      } finally {
+        setLoading(false);
       }
-      const o = {
-        unitPrice: Number(entry.pricing?.unitPrice || 0),
-        quantity: type === 'buy' ? Number(entry.pricing?.availableQuantity || 0) : Number(entry.pricing?.desiredQuantity || 0),
-        kingdomUrl: entry.tile?.url || '#',
-        kingdomName: entry.tile?.owner || 'kingdom'
-      };
-      if (type === 'buy') map[slug].buyOffers.push(o);
-      else map[slug].sellOffers.push(o);
-    };
-    (data.toBuy || []).forEach(e => add(e, 'buy'));
-    (data.toSell || []).forEach(e => add(e, 'sell'));
-    const arr = Object.values(map);
-    const qLower = q.toLowerCase();
-    const filteredItems = arr.filter(i => i.name.toLowerCase().includes(qLower));
-    setFiltered(filteredItems);
-  }, [data, q]);
+    }
+    fetchAndFilter();
+  }, [q]);
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col items-center">
-        <SearchBar allItemsFlat={[]} />
+      <div className="flex flex-col items-center gap-4">
+        <SearchBar />
+        <div className="w-full flex justify-center">
+          <button onClick={() => router.push('/')} className="px-3 py-2 bg-white border rounded">← Back to homepage</button>
+        </div>
       </div>
 
-      <div className="flex justify-center">
-        <button onClick={() => router.push('/')} className="px-3 py-2 bg-white border rounded">← Back to homepage</button>
-      </div>
-
-      <div className="flex justify-center">
-        <Tabs tabs={['Buy','Sell']} activeTab={activeTab} onChange={setActiveTab} />
-      </div>
+      <Tabs tabs={['Buy','Sell']} active={activeTab} setActive={setActiveTab} />
 
       {loading && <Loader />}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 p-4 rounded text-center">
-          <div className="font-semibold text-red-700">Error</div>
-          <div className="text-sm text-red-600">{error}</div>
-        </div>
+      {!loading && error && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded text-center text-red-600">{error}</div>
       )}
 
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && activeTab === 'Buy' && filteredBuy.length === 0 && (
         <div className="text-center text-gray-600">No results found for <strong>{q}</strong></div>
       )}
 
-      {!loading && !error && filtered.length > 0 && (
+      {!loading && !error && activeTab === 'Sell' && filteredSell.length === 0 && (
+        <div className="text-center text-gray-600">No results found for <strong>{q}</strong></div>
+      )}
+
+      {!loading && !error && activeTab === 'Buy' && filteredBuy.length > 0 && (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(it => <ItemCard key={it.slug} item={it} viewType={activeTab.toLowerCase()} />)}
+          {filteredBuy.map((it, idx) => <ItemCard key={it.object.slug + idx} item={it} viewType="buy" />)}
+        </div>
+      )}
+
+      {!loading && !error && activeTab === 'Sell' && filteredSell.length > 0 && (
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredSell.map((it, idx) => <ItemCard key={it.object.slug + idx} item={it} viewType="sell" />)}
         </div>
       )}
     </div>
