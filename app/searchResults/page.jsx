@@ -8,7 +8,7 @@ import SearchBar from '../components/SearchBar';
 
 const API = process.env.NEXT_PUBLIC_NOMSTEAD_API || 'https://api.nomstead.com/open/marketplace';
 
-function prettify(slug) {
+function prettifySlug(slug) {
   if (!slug) return '';
   return slug.replace(/[-]/g,'_').split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
 }
@@ -24,15 +24,25 @@ export default function SearchResults() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    async function fetchAndFilter() {
+    if (!q) {
+      router.push('/');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    (async () => {
       try {
-        setLoading(true);
-        setError(null);
         const res = await fetch(API);
         if (!res.ok) throw new Error('API ' + res.status);
         const j = await res.json();
-        const buy = (j.toBuy || []).filter(i => (i.object?.slug || '').toLowerCase().includes(q.toLowerCase()) || ( (i.object?.slug||'').replace(/_/g,' ').toLowerCase().includes(q.toLowerCase()) ));
-        const sell = (j.toSell || []).filter(i => (i.object?.slug || '').toLowerCase().includes(q.toLowerCase()) || ( (i.object?.slug||'').replace(/_/g,' ').toLowerCase().includes(q.toLowerCase()) ));
+        const buy = (j.toBuy || []).filter(i => {
+          const slug = (i.object?.slug || '').replace(/_/g,' ').toLowerCase();
+          return slug.includes(q.toLowerCase()) || (i.object?.metadata || '').toLowerCase().includes(q.toLowerCase());
+        });
+        const sell = (j.toSell || []).filter(i => {
+          const slug = (i.object?.slug || '').replace(/_/g,' ').toLowerCase();
+          return slug.includes(q.toLowerCase()) || (i.object?.metadata || '').toLowerCase().includes(q.toLowerCase());
+        });
         setFilteredBuy(buy);
         setFilteredSell(sell);
       } catch (e) {
@@ -41,9 +51,8 @@ export default function SearchResults() {
       } finally {
         setLoading(false);
       }
-    }
-    fetchAndFilter();
-  }, [q]);
+    })();
+  }, [q, router]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -54,7 +63,7 @@ export default function SearchResults() {
         </div>
       </div>
 
-      <Tabs tabs={['Buy','Sell']} active={activeTab} setActive={setActiveTab} />
+      <Tabs tabs={['Buy','Sell']} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {loading && <Loader />}
 
