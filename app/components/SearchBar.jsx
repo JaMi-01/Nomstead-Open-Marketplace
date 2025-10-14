@@ -10,20 +10,24 @@ export default function SearchBar({ allItemsFlat = [] }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!q || q.length < 1) { setSuggestions([]); return; }
+    if (!q || q.length < 1) {
+      setSuggestions([]);
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
-        // quick local filter first if list provided
         if (allItemsFlat && allItemsFlat.length) {
-          const matches = allItemsFlat.map(i => i.name).filter(n => n.toLowerCase().includes(q.toLowerCase()));
-          if (mounted) setSuggestions(Array.from(new Set(matches)).slice(0,8));
+          const names = allItemsFlat.map(i => i.name || i.slug || '').filter(Boolean);
+          const uniq = Array.from(new Set(names));
+          const matches = uniq.filter(n => n.toLowerCase().includes(q.toLowerCase())).slice(0,8);
+          if (mounted) setSuggestions(matches);
           return;
         }
         const res = await fetch(API);
         if (!res.ok) return;
         const j = await res.json();
-        const items = [...(j.toBuy||[]), ...(j.toSell||[])].map(i => i.object?.slug || i.object?.metadata || '');
+        const items = [...(j.toBuy || []), ...(j.toSell || [])].map(i => i.object?.slug || '');
         const unique = Array.from(new Set(items)).map(s => prettify(s)).filter(Boolean);
         if (mounted) setSuggestions(unique.filter(n => n.toLowerCase().includes(q.toLowerCase())).slice(0,8));
       } catch (e) {
@@ -39,30 +43,42 @@ export default function SearchBar({ allItemsFlat = [] }) {
     router.push(`/searchResults?q=${encodeURIComponent(s)}`);
   };
 
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (!q) return;
+    setSuggestions([]);
+    router.push(`/searchResults?q=${encodeURIComponent(q)}`);
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="relative">
+      <form onSubmit={onSubmit} className="relative">
         <input
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && select(q)}
           placeholder="Search items (e.g. Wood Plank, Carrot)..."
           className="w-full p-3 border rounded shadow-sm bg-white"
         />
         {(suggestions.length > 0) && (
-          <ul className="suggestion-list absolute left-0 right-0 bg-white border mt-1 rounded max-h-56 overflow-auto">
+          <ul className="suggestion-list absolute left-0 right-0 mt-1 rounded max-h-56 overflow-auto">
             {suggestions.map((s, idx) => (
               <li key={idx} className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => select(s)}>{s}</li>
             ))}
           </ul>
         )}
-      </div>
+      </form>
     </div>
   );
 }
 
 function prettify(slug) {
   if (!slug) return '';
-  return slug.replace(/[-]/g,'_').split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+  const parts = slug.replace(/-/g,'_').split('_').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1));
+  const idx = parts.findIndex(p => p.toLowerCase() === 'wood');
+  if (idx > 0) {
+    const wood = parts.splice(idx,1)[0];
+    parts.unshift(wood);
+  }
+  return parts.join(' ');
 }
