@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* small helpers */
+/* App helpers */
 html, body, #__next { height: 100%; }
 
 .card-hover { transition: transform .14s ease, box-shadow .14s ease; }
@@ -12,4 +12,5 @@ html, body, #__next { height: 100%; }
 .triangle.open { transform: rotate(90deg); }
 
 .item-icon { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
-.suggestion-list { z-index: 60; }
+
+.suggestion-list { z-index: 60; background: white; box-shadow: 0 6px 18px rgba(2,6,23,0.08); border-radius: 6px; }
