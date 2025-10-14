@@ -1,3 +1,6 @@
+<Suspense fallback={<Loader />}>
+  <SearchResults />
+</Suspense>
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
