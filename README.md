@@ -1,4 +1,4 @@
-# Nomstead Open Marketplace — Version 3.9
+# Nomstead Open Marketplace — Version 1.0
 
 A fast and beautiful web marketplace built with Next.js and Tailwind CSS for tracking Nomstead game market offers.
 
@@ -21,6 +21,3 @@ A fast and beautiful web marketplace built with Next.js and Tailwind CSS for tra
 ## API
 Uses the public Nomstead marketplace endpoint:
 `https://api.nomstead.com/open/marketplace`
-
-## Version
-v3.9
