@@ -1,13 +1,19 @@
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'api.nomstead.com', pathname: '/**' },
-      { protocol: 'https', hostname: '**', pathname: '/**' }
-    ]
+      {
+        protocol: 'https',
+        hostname: '**.nomstead.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.githubusercontent.com',
+      },
+    ],
   },
-  }
-}
+  reactStrictMode: true,
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
