@@ -7,8 +7,6 @@ const nextConfig = {
       { protocol: 'https', hostname: '**', pathname: '/**' }
     ]
   },
-  experimental: {
-    appDir: true
   }
 }
 
