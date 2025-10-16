@@ -1,19 +1,31 @@
-# Nomstead Open Marketplace — testdev (v4.2 in progress)
+# Nomstead Open Marketplace — Version 4.2.5
 
-This branch is the development and testing environment for upcoming Nomstead Marketplace versions.
+A fast and beautiful web marketplace built with Next.js and Tailwind CSS for tracking Nomstead game market offers.
 
-## Current focus
-- Unified card layout for Buy/Sell/Profit
-- Color themes: green (buy), gold (sell), blue (profit)
-- “Bulk” renamed to “Total”
-- Layout identical across tabs
-- Maintains all functionality from v4.1
+## Highlights
+- Buy / Sell / Profit tabs (homepage)
+- Foldable categories and subcategories with Expand All / Collapse All
+- Smart search within Buy and Sell tabs (auto-expand results)
+- Bulk calculator renamed to “Total” under each card
+- Unified card layout across all tabs
+- Individual offer cards (no more top 5 limit)
+- Donation block with copy-to-clipboard
+- “Created by” footer section
+- Clean, light UI using Tailwind CSS
 
-## Deployment
-Deployed automatically via Vercel Preview Builds.
-Branch: `testdev`
-Base: v4.1 stable (main)
+## Tech
+- Next.js 14 (App Router)
+- TailwindCSS 3.4.14
+- Deployed on Vercel
+
+## API
+Uses the public Nomstead marketplace endpoint:
+`https://api.nomstead.com/open/marketplace`
+
+## Version
+v4.2.5
 
 ---
 
-⚠️ This branch is experimental — do not merge to main until approved.
+✅ **Stable main build.**
+All features from v4.2.x integrated and verified on Vercel.
