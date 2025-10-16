@@ -22,13 +22,25 @@ html, body, #__next {
   transform: rotate(90deg);
 }
 
-/* 🎯 Ikon – 54px, gennemsigtig baggrund, ingen beskæring */
+/* 🌟 v4.2.4 Icon polish — slight zoom for airy icons */
 .item-icon {
   width: 54px;
   height: 54px;
   object-fit: contain;
   border-radius: 8px;
   display: block;
+  transform: scale(1.1);
+  transform-origin: center center;
+  transition: transform 0.15s ease;
+}
+
+.item-icon:hover {
+  transform: scale(1.15);
+}
+
+/* Tilføj let spacing for at forhindre beskæring */
+.flex-shrink-0 img {
+  padding: 1px;
 }
 
 .suggestion-list {
