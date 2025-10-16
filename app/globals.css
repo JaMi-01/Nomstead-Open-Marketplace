@@ -22,14 +22,12 @@ html, body, #__next {
   transform: rotate(90deg);
 }
 
-/* 🔧 Ikonrettelse: mindre størrelse, inde i centreret firkant */
+/* 🎯 Ikon – 54px, gennemsigtig baggrund, ingen beskæring */
 .item-icon {
-  width: 50px;
-  height: 50px;
+  width: 54px;
+  height: 54px;
   object-fit: contain;
   border-radius: 8px;
-  background-color: #ffffff;
-  padding: 2px;
   display: block;
 }
 
