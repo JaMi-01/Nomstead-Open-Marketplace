@@ -11,8 +11,10 @@ export default function ProfitCard({ item }) {
 
   return (
     <div className="bg-gradient-to-r from-sky-50 to-white rounded-lg p-4 shadow-sm card-hover border border-sky-200">
-      <div className="flex gap-3">
-        <img src={item.image || '/placeholder.png'} alt={name} className="item-icon" />
+      <div className="flex gap-3 items-center">
+        <div className="flex-shrink-0 flex items-center justify-center w-[58px] h-[58px] rounded-md bg-white">
+          <img src={item.image || '/placeholder.png'} alt={name} className="item-icon" />
+        </div>
         <div className="flex-1">
           <h3 className="font-semibold text-lg">{name}</h3>
 
