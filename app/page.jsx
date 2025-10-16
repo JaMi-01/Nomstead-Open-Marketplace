@@ -29,7 +29,6 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('Buy');
   const [expanded, setExpanded] = useState({});
   const [query, setQuery] = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(false);
   const [error, setError] = useState(null);
 
   async function fetchData() {
@@ -53,13 +52,6 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const id = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [autoRefresh]);
-
-  // Group data
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -103,7 +95,6 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // Profit logic
   const profitItems = useMemo(() => {
     const flat = [];
     Object.keys(grouped).forEach(cat => {
@@ -134,31 +125,6 @@ export default function HomePage() {
     return res.sort((a, b) => b.profitPerUnit - a.profitPerUnit);
   }, [grouped]);
 
-  // Search expands
-  useEffect(() => {
-    if (!query || activeTab === 'Profit') return;
-    const next = {};
-    Object.keys(grouped).forEach(cat => {
-      let catHas = false;
-      Object.keys(grouped[cat]).forEach(sub => {
-        const matches = grouped[cat][sub].filter(it => {
-          const q = query.toLowerCase();
-          return (
-            it.name.toLowerCase().includes(q) ||
-            it.slug.toLowerCase().includes(q) ||
-            (it.category + ' ' + it.subCategory).toLowerCase().includes(q)
-          );
-        });
-        if (matches.length) {
-          next[`${cat}__${sub}`] = true;
-          catHas = true;
-        }
-      });
-      if (catHas) next[cat] = true;
-    });
-    setExpanded(prev => ({ ...prev, ...next }));
-  }, [query, grouped, activeTab]);
-
   const expandAll = () => {
     const next = {};
     Object.keys(grouped).forEach(cat => {
@@ -183,14 +149,6 @@ export default function HomePage() {
             className="px-3 py-2 bg-white border rounded"
           >
             Refresh
-          </button>
-          <button
-            onClick={() => setAutoRefresh(a => !a)}
-            className={`px-3 py-2 rounded ${
-              autoRefresh ? 'bg-green-100' : 'bg-gray-100'
-            }`}
-          >
-            Auto refresh {autoRefresh ? 'on' : 'off'}
           </button>
           <button
             onClick={expandAll}
@@ -266,17 +224,7 @@ export default function HomePage() {
               {expanded[cat] && (
                 <div className="mt-4 space-y-4">
                   {Object.keys(grouped[cat]).map(sub => {
-                    const itemsList = grouped[cat][sub].filter(it => {
-                      if (!query) return true;
-                      const q = query.toLowerCase();
-                      return (
-                        it.name.toLowerCase().includes(q) ||
-                        it.slug.toLowerCase().includes(q) ||
-                        (it.category + ' ' + it.subCategory)
-                          .toLowerCase()
-                          .includes(q)
-                      );
-                    });
+                    const itemsList = grouped[cat][sub];
                     if (!itemsList.length) return null;
 
                     return (
