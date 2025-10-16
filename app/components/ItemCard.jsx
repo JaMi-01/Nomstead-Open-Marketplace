@@ -1,10 +1,6 @@
 'use client';
 import React, { useState } from 'react';
 
-/**
- * For hver offer (buy eller sell) laver vi ét kort.
- * page.jsx håndterer at sende individuelle offers ind som item.
- */
 export default function ItemCard({ item, viewType = 'buy' }) {
   const [amount, setAmount] = useState(1);
 
@@ -17,7 +13,6 @@ export default function ItemCard({ item, viewType = 'buy' }) {
   const url = item.kingdomUrl || '#';
   const owner = item.kingdomName || 'kingdom';
 
-  // farver
   const colorClass =
     viewType === 'buy'
       ? 'from-green-50 to-white border-green-200'
@@ -25,8 +20,10 @@ export default function ItemCard({ item, viewType = 'buy' }) {
 
   return (
     <div className={`bg-gradient-to-r ${colorClass} border rounded-lg p-4 shadow-sm card-hover`}>
-      <div className="flex gap-3">
-        <img src={img} alt={name} className="item-icon" />
+      <div className="flex gap-3 items-center">
+        <div className="flex-shrink-0 flex items-center justify-center w-[58px] h-[58px] rounded-md bg-white">
+          <img src={img} alt={name} className="item-icon" />
+        </div>
         <div className="flex-1">
           <h3 className="font-semibold text-lg">{name}</h3>
           <div className="text-sm text-gray-500">{category} / {sub}</div>
