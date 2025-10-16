@@ -125,11 +125,39 @@ export default function HomePage() {
     return res.sort((a, b) => b.profitPerUnit - a.profitPerUnit);
   }, [grouped]);
 
+  /* ✅ Smart expand on search restored */
+  useEffect(() => {
+    if (!query || activeTab === 'Profit') return;
+
+    const next = {};
+    Object.keys(grouped).forEach(cat => {
+      let catHas = false;
+      Object.keys(grouped[cat]).forEach(sub => {
+        const matches = grouped[cat][sub].filter(it => {
+          const q = query.toLowerCase();
+          return (
+            it.name.toLowerCase().includes(q) ||
+            it.slug.toLowerCase().includes(q) ||
+            (it.category + ' ' + it.subCategory).toLowerCase().includes(q)
+          );
+        });
+        if (matches.length) {
+          next[`${cat}__${sub}`] = true;
+          catHas = true;
+        }
+      });
+      if (catHas) next[cat] = true;
+    });
+    setExpanded(prev => ({ ...prev, ...next }));
+  }, [query, grouped, activeTab]);
+
   const expandAll = () => {
     const next = {};
     Object.keys(grouped).forEach(cat => {
       next[cat] = true;
-      Object.keys(grouped[cat]).forEach(sub => (next[`${cat}__${sub}`] = true));
+      Object.keys(grouped[cat]).forEach(
+        sub => (next[`${cat}__${sub}`] = true)
+      );
     });
     setExpanded(next);
   };
@@ -143,7 +171,7 @@ export default function HomePage() {
           currentTab={activeTab}
           allGrouped={grouped}
         />
-        <div className="flex gap-3 items-center flex-wrap justify-center">
+        <div className="flex gap-3 items-center">
           <button
             onClick={fetchData}
             className="px-3 py-2 bg-white border rounded"
@@ -203,15 +231,25 @@ export default function HomePage() {
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
           {Object.keys(grouped).map(cat => (
-            <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
+            <section
+              key={cat}
+              className="bg-white rounded-lg p-4 shadow-sm"
+            >
               <div className="flex justify-between items-center">
                 <h2
                   className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
                   onClick={() =>
-                    setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))
+                    setExpanded(prev => ({
+                      ...prev,
+                      [cat]: !prev[cat]
+                    }))
                   }
                 >
-                  <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>
+                  <span
+                    className={`triangle ${
+                      expanded[cat] ? 'open' : ''
+                    }`}
+                  >
                     ▶
                   </span>{' '}
                   {cat}
@@ -224,9 +262,18 @@ export default function HomePage() {
               {expanded[cat] && (
                 <div className="mt-4 space-y-4">
                   {Object.keys(grouped[cat]).map(sub => {
-                    const itemsList = grouped[cat][sub];
+                    const itemsList = grouped[cat][sub].filter(it => {
+                      if (!query) return true;
+                      const q = query.toLowerCase();
+                      return (
+                        it.name.toLowerCase().includes(q) ||
+                        it.slug.toLowerCase().includes(q) ||
+                        (it.category + ' ' + it.subCategory)
+                          .toLowerCase()
+                          .includes(q)
+                      );
+                    });
                     if (!itemsList.length) return null;
-
                     return (
                       <div key={sub}>
                         <div className="flex items-center justify-between">
@@ -242,7 +289,9 @@ export default function HomePage() {
                           >
                             <span
                               className={`triangle ${
-                                expanded[`${cat}__${sub}`] ? 'open' : ''
+                                expanded[`${cat}__${sub}`]
+                                  ? 'open'
+                                  : ''
                               }`}
                             >
                               ▶
@@ -262,12 +311,14 @@ export default function HomePage() {
                                   ? (it.buyOffers || [])
                                       .slice()
                                       .sort(
-                                        (a, b) => a.unitPrice - b.unitPrice
+                                        (a, b) =>
+                                          a.unitPrice - b.unitPrice
                                       )
                                   : (it.sellOffers || [])
                                       .slice()
                                       .sort(
-                                        (a, b) => b.unitPrice - a.unitPrice
+                                        (a, b) =>
+                                          b.unitPrice - a.unitPrice
                                       );
 
                               return offers.map((offer, i) => (
