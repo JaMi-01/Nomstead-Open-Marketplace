@@ -10,10 +10,12 @@ const API = 'https://api.nomstead.com/open/marketplace';
 
 function prettify(slug) {
   if (!slug) return '';
-  const parts = slug.replace(/-/g,'_').split('_').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1));
+  const parts = slug.replace(/-/g, '_').split('_').filter(Boolean).map(
+    p => p.charAt(0).toUpperCase() + p.slice(1)
+  );
   const idx = parts.findIndex(p => p.toLowerCase() === 'wood');
   if (idx > 0) {
-    const wood = parts.splice(idx,1)[0];
+    const wood = parts.splice(idx, 1)[0];
     parts.unshift(wood);
   }
   return parts.join(' ');
@@ -33,6 +35,7 @@ export default function HomePage() {
   const [raw, setRaw] = useState({ toBuy: [], toSell: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Buy');
+  const [expanded, setExpanded] = useState({});
   const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -59,7 +62,7 @@ export default function HomePage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // update “x min ago”
+  // “X min ago” updater
   useEffect(() => {
     if (!lastUpdated) return;
     const interval = setInterval(() => {
@@ -69,7 +72,7 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [lastUpdated]);
 
-  // --- PROFIT LOGIC (unchanged) ---
+  // --- Grouping logic (Buy/Sell & Profit) ---
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -92,6 +95,7 @@ export default function HomePage() {
           sellOffers: []
         };
       }
+
       const offer = {
         unitPrice: Number(entry.pricing?.unitPrice ?? 0),
         quantity: type === 'buy'
@@ -100,11 +104,13 @@ export default function HomePage() {
         kingdomUrl: entry.tile?.url || '#',
         kingdomName: entry.tile?.owner || 'kingdom'
       };
+
       if (type === 'buy') map[key].buyOffers.push(offer);
       else map[key].sellOffers.push(offer);
     };
-    (raw.toBuy || []).forEach(e => add(e,'buy'));
-    (raw.toSell || []).forEach(e => add(e,'sell'));
+
+    (raw.toBuy || []).forEach(e => add(e, 'buy'));
+    (raw.toSell || []).forEach(e => add(e, 'sell'));
 
     const byCat = {};
     Object.values(map).forEach(it => {
@@ -117,6 +123,7 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
+  // --- Profit logic (unchanged) ---
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
@@ -156,13 +163,41 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
+  // expand/collapse for Profit default expanded
+  useEffect(() => {
+    if (activeTab === 'Profit' && Object.keys(groupedProfit).length) {
+      const next = {};
+      Object.keys(groupedProfit).forEach(cat => {
+        next[cat] = true;
+        Object.keys(groupedProfit[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
+      });
+      setExpanded(next);
+    } else if (activeTab !== 'Profit') {
+      setExpanded({});
+    }
+  }, [activeTab, groupedProfit]);
+
+  const expandAll = () => {
+    const next = {};
+    Object.keys(grouped).forEach(cat => {
+      next[cat] = true;
+      Object.keys(grouped[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
+    });
+    setExpanded(next);
+  };
+  const collapseAll = () => setExpanded({});
+
+  // --- Render ---
   return (
     <div className="space-y-6 pb-12">
+      {/* Controls */}
       <div className="flex flex-col items-center gap-3">
         <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
         <div className="flex flex-col items-center gap-1">
           <div className="flex gap-3 items-center">
             <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
+            <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
+            <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
           </div>
           {lastUpdated && (
             <p className="text-xs text-gray-500 mt-1">Last updated {minutesAgo ?? 0} min ago</p>
@@ -173,7 +208,7 @@ export default function HomePage() {
       <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
       {loading && <Loader />}
 
-      {/* --- PROFIT TAB (unchanged) --- */}
+      {/* PROFIT TAB */}
       {!loading && activeTab === 'Profit' && (
         <div className="space-y-6">
           <div className="bg-white rounded-lg p-4 shadow-sm">
@@ -187,26 +222,17 @@ export default function HomePage() {
               ) : (
                 Object.keys(groupedProfit).map(cat => (
                   <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-semibold flex items-center gap-2 cursor-pointer">
-                        ▶ {cat}
-                      </h2>
-                      <div className="text-sm text-gray-500">{Object.keys(groupedProfit[cat]).length} subcategories</div>
-                    </div>
-                    <div className="mt-4 space-y-4">
-                      {Object.keys(groupedProfit[cat]).map(sub => {
-                        const items = groupedProfit[cat][sub];
-                        if (!items.length) return null;
-                        return (
-                          <div key={sub}>
-                            <h3 className="text-lg font-medium">{sub}</h3>
-                            <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                              {items.map(p => <ProfitCard key={p.slug + p.type} item={p} />)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <h2 className="text-xl font-semibold">{cat}</h2>
+                    {Object.keys(groupedProfit[cat]).map(sub => (
+                      <div key={sub} className="mt-3">
+                        <h3 className="text-lg font-medium">{sub}</h3>
+                        <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                          {groupedProfit[cat][sub].map(p => (
+                            <ProfitCard key={p.slug + p.type} item={p} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </section>
                 ))
               )}
@@ -215,35 +241,67 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* --- BUY & SELL TABS --- */}
+      {/* BUY & SELL TABS */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
-          {(() => {
-            const isBuy = activeTab === 'Buy';
-            const data = isBuy ? raw.toBuy : raw.toSell;
-            const filtered = data.filter(entry => {
-              if (!query) return true;
-              const q = query.toLowerCase();
-              const obj = entry.object || {};
-              return (
-                (obj.slug || '').toLowerCase().includes(q) ||
-                (obj.category || '').toLowerCase().includes(q) ||
-                (obj.subCategory || '').toLowerCase().includes(q)
-              );
-            });
-            const sorted = filtered.sort((a,b) =>
-              isBuy
-                ? a.pricing.unitPrice - b.pricing.unitPrice
-                : b.pricing.unitPrice - a.pricing.unitPrice
-            );
-            return (
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {sorted.map((entry, i) => (
-                  <ItemCard key={i} item={entry} viewType={isBuy ? 'buy' : 'sell'} />
-                ))}
+          {Object.keys(grouped).map(cat => (
+            <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
+              <div
+                className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
+                onClick={() => setExpanded(prev => ({...prev, [cat]: !prev[cat]}))}
+              >
+                <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>▶</span> {cat}
               </div>
-            );
-          })()}
+              {expanded[cat] && (
+                <div className="mt-4 space-y-4">
+                  {Object.keys(grouped[cat]).map(sub => {
+                    const items = grouped[cat][sub].filter(it => {
+                      if (!query) return true;
+                      const q = query.toLowerCase();
+                      return (
+                        it.name.toLowerCase().includes(q) ||
+                        it.slug.toLowerCase().includes(q)
+                      );
+                    });
+                    if (!items.length) return null;
+
+                    return (
+                      <div key={sub}>
+                        <div
+                          className="text-lg font-medium flex items-center gap-2 cursor-pointer"
+                          onClick={() => setExpanded(prev => ({...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`]}))}
+                        >
+                          <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
+                        </div>
+
+                        {expanded[`${cat}__${sub}`] && (
+                          <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                            {/* her vises ALLE ordrer for hver item */}
+                            {items.map(it => {
+                              const offers =
+                                activeTab === 'Buy'
+                                  ? it.buyOffers.slice().sort((a,b)=>a.unitPrice - b.unitPrice)
+                                  : it.sellOffers.slice().sort((a,b)=>b.unitPrice - a.unitPrice);
+                              return offers.map((offer, idx) => (
+                                <ItemCard
+                                  key={`${it.slug}-${idx}`}
+                                  item={{
+                                    ...it,
+                                    singleOffer: offer
+                                  }}
+                                  viewType={activeTab.toLowerCase()}
+                                />
+                              ));
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          ))}
         </div>
       )}
 
