@@ -33,7 +33,6 @@ export default function HomePage() {
   const [raw, setRaw] = useState({ toBuy: [], toSell: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Buy');
-  const [expanded, setExpanded] = useState({});
   const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -58,7 +57,9 @@ export default function HomePage() {
     }
   }
 
-  // timer for “x min ago”
+  useEffect(() => { fetchData(); }, []);
+
+  // update “x min ago”
   useEffect(() => {
     if (!lastUpdated) return;
     const interval = setInterval(() => {
@@ -68,9 +69,7 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [lastUpdated]);
 
-  useEffect(() => { fetchData(); }, []);
-
-  // Grouped logic (for Profit only)
+  // --- PROFIT LOGIC (unchanged) ---
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -118,7 +117,6 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // profit beregning
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
@@ -158,23 +156,8 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // expand/collapse default behavior
-  useEffect(() => {
-    if (activeTab === 'Profit' && Object.keys(groupedProfit).length) {
-      const next = {};
-      Object.keys(groupedProfit).forEach(cat => {
-        next[cat] = true;
-        Object.keys(groupedProfit[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
-      });
-      setExpanded(next);
-    } else if (activeTab !== 'Profit') {
-      setExpanded({});
-    }
-  }, [activeTab, groupedProfit]);
-
   return (
     <div className="space-y-6 pb-12">
-      {/* Search + Controls */}
       <div className="flex flex-col items-center gap-3">
         <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
         <div className="flex flex-col items-center gap-1">
@@ -182,9 +165,7 @@ export default function HomePage() {
             <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
           </div>
           {lastUpdated && (
-            <p className="text-xs text-gray-500 mt-1">
-              Last updated {minutesAgo ?? 0} min ago
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Last updated {minutesAgo ?? 0} min ago</p>
           )}
         </div>
       </div>
@@ -192,7 +173,7 @@ export default function HomePage() {
       <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
       {loading && <Loader />}
 
-      {/* PROFIT TAB */}
+      {/* --- PROFIT TAB (unchanged) --- */}
       {!loading && activeTab === 'Profit' && (
         <div className="space-y-6">
           <div className="bg-white rounded-lg p-4 shadow-sm">
@@ -200,62 +181,41 @@ export default function HomePage() {
               <h2 className="text-xl font-semibold">Buy Low & Sell High</h2>
               <div className="text-sm text-gray-500">{profitItems.length} items</div>
             </div>
-
             <div className="mt-4 space-y-6">
               {Object.keys(groupedProfit).length === 0 ? (
                 <div className="text-center text-gray-600">No items with profit at the moment.</div>
               ) : (
-                Object.keys(groupedProfit).map(cat => {
-                  const subcats = groupedProfit[cat];
-                  if (!Object.keys(subcats).length) return null;
-                  return (
-                    <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
-                      <div className="flex justify-between items-center">
-                        <h2
-                          className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
-                          onClick={() => setExpanded(prev => ({...prev, [cat]: !prev[cat]}))}
-                        >
-                          <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>▶</span> {cat}
-                        </h2>
-                        <div className="text-sm text-gray-500">{Object.keys(subcats).length} subcategories</div>
-                      </div>
-
-                      {expanded[cat] && (
-                        <div className="mt-4 space-y-4">
-                          {Object.keys(subcats).map(sub => {
-                            const items = subcats[sub];
-                            if (!items.length) return null;
-                            return (
-                              <div key={sub}>
-                                <div
-                                  className="flex items-center justify-between cursor-pointer"
-                                  onClick={() => setExpanded(prev => ({...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`]}))}
-                                >
-                                  <h3 className="text-lg font-medium flex items-center gap-2">
-                                    <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
-                                  </h3>
-                                  <div className="text-sm text-gray-500">{items.length} items</div>
-                                </div>
-                                {expanded[`${cat}__${sub}`] && (
-                                  <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {items.map(p => <ProfitCard key={p.slug + p.type} item={p} />)}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })
+                Object.keys(groupedProfit).map(cat => (
+                  <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-xl font-semibold flex items-center gap-2 cursor-pointer">
+                        ▶ {cat}
+                      </h2>
+                      <div className="text-sm text-gray-500">{Object.keys(groupedProfit[cat]).length} subcategories</div>
+                    </div>
+                    <div className="mt-4 space-y-4">
+                      {Object.keys(groupedProfit[cat]).map(sub => {
+                        const items = groupedProfit[cat][sub];
+                        if (!items.length) return null;
+                        return (
+                          <div key={sub}>
+                            <h3 className="text-lg font-medium">{sub}</h3>
+                            <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                              {items.map(p => <ProfitCard key={p.slug + p.type} item={p} />)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* BUY & SELL TABS */}
+      {/* --- BUY & SELL TABS --- */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
           {(() => {
@@ -279,7 +239,7 @@ export default function HomePage() {
             return (
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {sorted.map((entry, i) => (
-                  <ItemCard key={i} item={entry.object} viewType={isBuy ? 'buy' : 'sell'} />
+                  <ItemCard key={i} item={entry} viewType={isBuy ? 'buy' : 'sell'} />
                 ))}
               </div>
             );
