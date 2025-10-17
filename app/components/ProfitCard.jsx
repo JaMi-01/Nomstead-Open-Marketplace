@@ -17,9 +17,6 @@ export default function ProfitCard({ item }) {
   const name = item.name || item.slug || 'Item';
   const img = item.image || '/placeholder.png';
 
-  // hvis profit = 0, skjul kort
-  if (profitPerUnit <= 0.0001) return null;
-
   return (
     <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
       <div className="flex gap-3">
