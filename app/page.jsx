@@ -89,26 +89,35 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // profit calculation
+  // profit calculation – match only within same category/subcategory
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
       Object.keys(grouped[cat]).forEach(sub => {
-        grouped[cat][sub].forEach(it => {
+        const items = grouped[cat][sub];
+        items.forEach(it => {
           if (!it.buyOffers?.length || !it.sellOffers?.length) return;
+
+          // find best buy/sell within same category/subcategory only
           const lowestBuy = it.buyOffers.reduce((a,b)=>a.unitPrice<=b.unitPrice?a:b);
           const highestSell = it.sellOffers.reduce((a,b)=>a.unitPrice>=b.unitPrice?a:b);
+
+          // ensure they belong to same category + subcategory (safety check)
+          if (it.category !== cat || it.subCategory !== sub) return;
+
           const profit = highestSell.unitPrice - lowestBuy.unitPrice;
-          if (profit > 0) list.push({
-            slug: it.slug,
-            name: it.name,
-            category: it.category,
-            subCategory: it.subCategory,
-            image: it.image,
-            buy: lowestBuy,
-            sell: highestSell,
-            profitPerUnit: profit
-          });
+          if (profit > 0) {
+            list.push({
+              slug: it.slug,
+              name: it.name,
+              category: cat,
+              subCategory: sub,
+              image: it.image,
+              buy: lowestBuy,
+              sell: highestSell,
+              profitPerUnit: profit
+            });
+          }
         });
       });
     });
@@ -128,7 +137,7 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // search expand logic
+  // search expand logic (Buy/Sell only)
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
     const next = {};
