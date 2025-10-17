@@ -1,17 +1,17 @@
-# Nomstead Open Marketplace — Version 4.2.5
+# Nomstead Open Marketplace — Version 4.3
 
-A fast and beautiful web marketplace built with Next.js and Tailwind CSS for tracking Nomstead game market offers.
+A fast, modern web marketplace built with Next.js and Tailwind CSS for tracking Nomstead game market offers.
 
 ## Highlights
-- Buy / Sell / Profit tabs (homepage)
-- Foldable categories and subcategories with Expand All / Collapse All
-- Smart search within Buy and Sell tabs (auto-expand results)
-- Bulk calculator renamed to “Total” under each card
-- Unified card layout across all tabs
-- Individual offer cards (no more top 5 limit)
-- Donation block with copy-to-clipboard
-- “Created by” footer section
-- Clean, light UI using Tailwind CSS
+- Unified Buy / Sell / Profit card layout
+- Foldable categories and subcategories with dynamic item counts
+- Profit tab grouped by category and subcategory
+- Accurate profit logic: Buy from cheapest seller → Sell to best buyer
+- Bulk calculator renamed to **Total**, uses real trade quantities
+- Timestamp shows “Last updated X min ago”
+- Clean black text styling across cards
+- Fully responsive UI with Tailwind CSS 3.4.14
+- 100 % working deployment on Vercel
 
 ## Tech
 - Next.js 14 (App Router)
@@ -19,13 +19,8 @@ A fast and beautiful web marketplace built with Next.js and Tailwind CSS for tra
 - Deployed on Vercel
 
 ## API
-Uses the public Nomstead marketplace endpoint:
+Uses the public Nomstead endpoint:  
 `https://api.nomstead.com/open/marketplace`
 
 ## Version
-v4.2.5
-
----
-
-✅ **Stable main build.**
-All features from v4.2.x integrated and verified on Vercel.
+v4.3
