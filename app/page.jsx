@@ -10,14 +10,10 @@ const API = 'https://api.nomstead.com/open/marketplace';
 
 function prettify(slug) {
   if (!slug) return '';
-  const parts = slug
-    .replace(/-/g, '_')
-    .split('_')
-    .filter(Boolean)
-    .map(p => p.charAt(0).toUpperCase() + p.slice(1));
+  const parts = slug.replace(/-/g,'_').split('_').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1));
   const idx = parts.findIndex(p => p.toLowerCase() === 'wood');
   if (idx > 0) {
-    const wood = parts.splice(idx, 1)[0];
+    const wood = parts.splice(idx,1)[0];
     parts.unshift(wood);
   }
   return parts.join(' ');
@@ -48,10 +44,9 @@ export default function HomePage() {
     }
   }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
+  // group Buy/Sell into category/subcategory
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -70,10 +65,9 @@ export default function HomePage() {
       }
       const offer = {
         unitPrice: Number(entry.pricing?.unitPrice ?? 0),
-        quantity:
-          type === 'buy'
-            ? Number(entry.pricing?.availableQuantity ?? 0)
-            : Number(entry.pricing?.desiredQuantity ?? 0),
+        quantity: type === 'buy'
+          ? Number(entry.pricing?.availableQuantity ?? 0)
+          : Number(entry.pricing?.desiredQuantity ?? 0),
         kingdomUrl: entry.tile?.url || '#',
         kingdomName: entry.tile?.owner || 'kingdom'
       };
@@ -81,8 +75,8 @@ export default function HomePage() {
       else map[slug].sellOffers.push(offer);
     };
 
-    (raw.toBuy || []).forEach(e => add(e, 'buy'));
-    (raw.toSell || []).forEach(e => add(e, 'sell'));
+    (raw.toBuy || []).forEach(e => add(e,'buy'));
+    (raw.toSell || []).forEach(e => add(e,'sell'));
 
     const byCat = {};
     Object.values(map).forEach(it => {
@@ -95,40 +89,48 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
+  // profit calculation
   const profitItems = useMemo(() => {
-    const flat = [];
+    const list = [];
     Object.keys(grouped).forEach(cat => {
       Object.keys(grouped[cat]).forEach(sub => {
-        grouped[cat][sub].forEach(it => flat.push(it));
+        grouped[cat][sub].forEach(it => {
+          if (!it.buyOffers?.length || !it.sellOffers?.length) return;
+          const lowestBuy = it.buyOffers.reduce((a,b)=>a.unitPrice<=b.unitPrice?a:b);
+          const highestSell = it.sellOffers.reduce((a,b)=>a.unitPrice>=b.unitPrice?a:b);
+          const profit = highestSell.unitPrice - lowestBuy.unitPrice;
+          if (profit > 0) list.push({
+            slug: it.slug,
+            name: it.name,
+            category: it.category,
+            subCategory: it.subCategory,
+            image: it.image,
+            buy: lowestBuy,
+            sell: highestSell,
+            profitPerUnit: profit
+          });
+        });
       });
     });
-    const res = [];
-    flat.forEach(it => {
-      if (!it.buyOffers?.length || !it.sellOffers?.length) return;
-      const lowestBuy = it.buyOffers.reduce((a, b) =>
-        a.unitPrice <= b.unitPrice ? a : b
-      );
-      const highestSell = it.sellOffers.reduce((a, b) =>
-        a.unitPrice >= b.unitPrice ? a : b
-      );
-      const profit = highestSell.unitPrice - lowestBuy.unitPrice;
-      if (profit > 0)
-        res.push({
-          slug: it.slug,
-          name: it.name,
-          buy: lowestBuy,
-          sell: highestSell,
-          image: it.image,
-          profitPerUnit: profit
-        });
-    });
-    return res.sort((a, b) => b.profitPerUnit - a.profitPerUnit);
+    return list.sort((a,b)=>b.profitPerUnit - a.profitPerUnit);
   }, [grouped]);
 
-  /* ✅ Smart expand on search restored */
+  // group profit items by category/subcategory for folding
+  const groupedProfit = useMemo(() => {
+    const map = {};
+    profitItems.forEach(p => {
+      const cat = p.category || 'Misc';
+      const sub = p.subCategory || 'General';
+      map[cat] ??= {};
+      map[cat][sub] ??= [];
+      map[cat][sub].push(p);
+    });
+    return map;
+  }, [profitItems]);
+
+  // search expand logic
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
-
     const next = {};
     Object.keys(grouped).forEach(cat => {
       let catHas = false;
@@ -138,7 +140,7 @@ export default function HomePage() {
           return (
             it.name.toLowerCase().includes(q) ||
             it.slug.toLowerCase().includes(q) ||
-            (it.category + ' ' + it.subCategory).toLowerCase().includes(q)
+            (it.category+' '+it.subCategory).toLowerCase().includes(q)
           );
         });
         if (matches.length) {
@@ -148,16 +150,15 @@ export default function HomePage() {
       });
       if (catHas) next[cat] = true;
     });
-    setExpanded(prev => ({ ...prev, ...next }));
+    setExpanded(prev => ({...prev, ...next}));
   }, [query, grouped, activeTab]);
 
   const expandAll = () => {
     const next = {};
-    Object.keys(grouped).forEach(cat => {
+    const src = activeTab === 'Profit' ? groupedProfit : grouped;
+    Object.keys(src).forEach(cat => {
       next[cat] = true;
-      Object.keys(grouped[cat]).forEach(
-        sub => (next[`${cat}__${sub}`] = true)
-      );
+      Object.keys(src[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
     });
     setExpanded(next);
   };
@@ -166,176 +167,125 @@ export default function HomePage() {
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col items-center gap-4">
-        <SearchBar
-          onSearch={setQuery}
-          currentTab={activeTab}
-          allGrouped={grouped}
-        />
+        <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
         <div className="flex gap-3 items-center">
-          <button
-            onClick={fetchData}
-            className="px-3 py-2 bg-white border rounded"
-          >
-            Refresh
-          </button>
-          <button
-            onClick={expandAll}
-            className="px-3 py-2 bg-green-100 rounded"
-          >
-            Expand All
-          </button>
-          <button
-            onClick={collapseAll}
-            className="px-3 py-2 bg-yellow-100 rounded"
-          >
-            Collapse All
-          </button>
+          <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
+          <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
+          <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
         </div>
       </div>
 
-      <Tabs
-        tabs={['Buy', 'Sell', 'Profit']}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+      <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {loading && <Loader />}
 
+      {/* Profit Tab */}
       {!loading && activeTab === 'Profit' && (
         <div className="space-y-6">
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Buy low & Sell high</h2>
-              <div className="text-sm text-gray-500">
-                {profitItems.length} items
-              </div>
+              <div className="text-sm text-gray-500">{profitItems.length} items</div>
             </div>
 
-            <div className="mt-4">
-              {profitItems.length === 0 ? (
-                <div className="text-center text-gray-600">
-                  No items with profit at the moment.
-                </div>
+            <div className="mt-4 space-y-6">
+              {Object.keys(groupedProfit).length === 0 ? (
+                <div className="text-center text-gray-600">No items with profit at the moment.</div>
               ) : (
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {profitItems.map(p => (
-                    <ProfitCard key={p.slug} item={p} />
-                  ))}
-                </div>
+                Object.keys(groupedProfit).map(cat => {
+                  const subcats = groupedProfit[cat];
+                  if (!Object.keys(subcats).length) return null;
+                  return (
+                    <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <h2
+                          className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
+                          onClick={() => setExpanded(prev => ({...prev, [cat]: !prev[cat]}))}
+                        >
+                          <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>▶</span> {cat}
+                        </h2>
+                        <div className="text-sm text-gray-500">{Object.keys(subcats).length} subcategories</div>
+                      </div>
+
+                      {expanded[cat] && (
+                        <div className="mt-4 space-y-4">
+                          {Object.keys(subcats).map(sub => {
+                            const items = subcats[sub];
+                            if (!items.length) return null;
+                            return (
+                              <div key={sub}>
+                                <div
+                                  className="flex items-center justify-between cursor-pointer"
+                                  onClick={() => setExpanded(prev => ({...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`]}))}
+                                >
+                                  <h3 className="text-lg font-medium flex items-center gap-2">
+                                    <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
+                                  </h3>
+                                  <div className="text-sm text-gray-500">{items.length} items</div>
+                                </div>
+
+                                {expanded[`${cat}__${sub}`] && (
+                                  <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                                    {items.map(p => <ProfitCard key={p.slug} item={p} />)}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })
               )}
             </div>
           </div>
         </div>
       )}
 
+      {/* Buy & Sell Tabs */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
           {Object.keys(grouped).map(cat => (
-            <section
-              key={cat}
-              className="bg-white rounded-lg p-4 shadow-sm"
-            >
+            <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
               <div className="flex justify-between items-center">
                 <h2
                   className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
-                  onClick={() =>
-                    setExpanded(prev => ({
-                      ...prev,
-                      [cat]: !prev[cat]
-                    }))
-                  }
+                  onClick={() => setExpanded(prev => ({...prev, [cat]: !prev[cat]}))}
                 >
-                  <span
-                    className={`triangle ${
-                      expanded[cat] ? 'open' : ''
-                    }`}
-                  >
-                    ▶
-                  </span>{' '}
-                  {cat}
+                  <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>▶</span> {cat}
                 </h2>
-                <div className="text-sm text-gray-500">
-                  {Object.keys(grouped[cat]).length} subcategories
-                </div>
+                <div className="text-sm text-gray-500">{Object.keys(grouped[cat]).length} subcategories</div>
               </div>
 
               {expanded[cat] && (
                 <div className="mt-4 space-y-4">
                   {Object.keys(grouped[cat]).map(sub => {
-                    const itemsList = grouped[cat][sub].filter(it => {
+                    const items = grouped[cat][sub].filter(it => {
                       if (!query) return true;
                       const q = query.toLowerCase();
                       return (
                         it.name.toLowerCase().includes(q) ||
                         it.slug.toLowerCase().includes(q) ||
-                        (it.category + ' ' + it.subCategory)
-                          .toLowerCase()
-                          .includes(q)
+                        (it.category+' '+it.subCategory).toLowerCase().includes(q)
                       );
                     });
-                    if (!itemsList.length) return null;
+                    if (!items.length) return null;
                     return (
                       <div key={sub}>
-                        <div className="flex items-center justify-between">
-                          <h3
-                            className="text-lg font-medium flex items-center gap-2 cursor-pointer"
-                            onClick={() =>
-                              setExpanded(prev => ({
-                                ...prev,
-                                [`${cat}__${sub}`]:
-                                  !prev[`${cat}__${sub}`]
-                              }))
-                            }
-                          >
-                            <span
-                              className={`triangle ${
-                                expanded[`${cat}__${sub}`]
-                                  ? 'open'
-                                  : ''
-                              }`}
-                            >
-                              ▶
-                            </span>{' '}
-                            {sub}
+                        <div
+                          className="flex items-center justify-between cursor-pointer"
+                          onClick={() => setExpanded(prev => ({...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`]}))}
+                        >
+                          <h3 className="text-lg font-medium flex items-center gap-2">
+                            <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
                           </h3>
-                          <div className="text-sm text-gray-500">
-                            {itemsList.length} items
-                          </div>
+                          <div className="text-sm text-gray-500">{items.length} items</div>
                         </div>
 
                         {expanded[`${cat}__${sub}`] && (
                           <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                            {itemsList.flatMap(it => {
-                              const offers =
-                                activeTab === 'Buy'
-                                  ? (it.buyOffers || [])
-                                      .slice()
-                                      .sort(
-                                        (a, b) =>
-                                          a.unitPrice - b.unitPrice
-                                      )
-                                  : (it.sellOffers || [])
-                                      .slice()
-                                      .sort(
-                                        (a, b) =>
-                                          b.unitPrice - a.unitPrice
-                                      );
-
-                              return offers.map((offer, i) => (
-                                <ItemCard
-                                  key={`${it.slug}-${i}-${activeTab}`}
-                                  item={{
-                                    ...offer,
-                                    name: it.name,
-                                    slug: it.slug,
-                                    image: it.image,
-                                    category: it.category,
-                                    subCategory: it.subCategory
-                                  }}
-                                  viewType={activeTab.toLowerCase()}
-                                />
-                              ));
-                            })}
+                            {items.map(it => <ItemCard key={it.slug} item={it} viewType={activeTab.toLowerCase()} />)}
                           </div>
                         )}
                       </div>
