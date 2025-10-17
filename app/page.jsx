@@ -19,6 +19,16 @@ function prettify(slug) {
   return parts.join(' ');
 }
 
+function detectType(category, slug) {
+  const c = category?.toLowerCase() || '';
+  const s = slug?.toLowerCase() || '';
+  if (c.includes('recipe') || s.includes('recipe')) return 'recipe';
+  if (c.includes('seed') || s.includes('seed')) return 'seed';
+  if (c.includes('resource') || s.includes('resource')) return 'resource';
+  if (c.includes('material') || s.includes('material')) return 'material';
+  return 'object';
+}
+
 export default function HomePage() {
   const [raw, setRaw] = useState({ toBuy: [], toSell: [] });
   const [loading, setLoading] = useState(true);
@@ -46,18 +56,24 @@ export default function HomePage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // group Buy/Sell into category/subcategory
+  // Group data
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
       const obj = entry.object || {};
       const slug = obj.slug || obj.metadata || 'unknown';
-      if (!map[slug]) {
-        map[slug] = {
+      const category = obj.category || 'Misc';
+      const sub = obj.subCategory || 'General';
+      const detectedType = detectType(category, slug);
+
+      const key = `${slug}_${detectedType}`;
+      if (!map[key]) {
+        map[key] = {
           slug,
           name: prettify(slug),
-          category: obj.category || 'Misc',
-          subCategory: obj.subCategory || 'General',
+          category,
+          subCategory: sub,
+          type: detectedType,
           image: obj.imageUrl || obj.thumbnailImageUrl || '',
           buyOffers: [],
           sellOffers: []
@@ -71,8 +87,8 @@ export default function HomePage() {
         kingdomUrl: entry.tile?.url || '#',
         kingdomName: entry.tile?.owner || 'kingdom'
       };
-      if (type === 'buy') map[slug].buyOffers.push(offer);
-      else map[slug].sellOffers.push(offer);
+      if (type === 'buy') map[key].buyOffers.push(offer);
+      else map[key].sellOffers.push(offer);
     };
 
     (raw.toBuy || []).forEach(e => add(e,'buy'));
@@ -89,42 +105,41 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // profit calculation – match only within same category/subcategory
+  // Profit logic: only match same category + subcategory + type
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
       Object.keys(grouped[cat]).forEach(sub => {
-        const items = grouped[cat][sub];
-        items.forEach(it => {
+        grouped[cat][sub].forEach(it => {
           if (!it.buyOffers?.length || !it.sellOffers?.length) return;
-
-          // find best buy/sell within same category/subcategory only
           const lowestBuy = it.buyOffers.reduce((a,b)=>a.unitPrice<=b.unitPrice?a:b);
           const highestSell = it.sellOffers.reduce((a,b)=>a.unitPrice>=b.unitPrice?a:b);
 
-          // ensure they belong to same category + subcategory (safety check)
-          if (it.category !== cat || it.subCategory !== sub) return;
-
           const profit = highestSell.unitPrice - lowestBuy.unitPrice;
-          if (profit > 0) {
-            list.push({
-              slug: it.slug,
-              name: it.name,
-              category: cat,
-              subCategory: sub,
-              image: it.image,
-              buy: lowestBuy,
-              sell: highestSell,
-              profitPerUnit: profit
-            });
-          }
+          if (profit <= 0) return;
+
+          // ensure both offers belong to same type
+          const buyType = it.type;
+          const sellType = it.type; // since both from same item structure
+          if (buyType !== sellType) return;
+
+          list.push({
+            slug: it.slug,
+            name: it.name,
+            category: cat,
+            subCategory: sub,
+            type: it.type,
+            image: it.image,
+            buy: lowestBuy,
+            sell: highestSell,
+            profitPerUnit: profit
+          });
         });
       });
     });
     return list.sort((a,b)=>b.profitPerUnit - a.profitPerUnit);
   }, [grouped]);
 
-  // group profit items by category/subcategory for folding
   const groupedProfit = useMemo(() => {
     const map = {};
     profitItems.forEach(p => {
@@ -137,7 +152,7 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // search expand logic (Buy/Sell only)
+  // Search expand (Buy/Sell only)
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
     const next = {};
@@ -185,7 +200,6 @@ export default function HomePage() {
       </div>
 
       <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
-
       {loading && <Loader />}
 
       {/* Profit Tab */}
@@ -235,7 +249,7 @@ export default function HomePage() {
 
                                 {expanded[`${cat}__${sub}`] && (
                                   <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {items.map(p => <ProfitCard key={p.slug} item={p} />)}
+                                    {items.map(p => <ProfitCard key={p.slug + p.type} item={p} />)}
                                   </div>
                                 )}
                               </div>
@@ -252,7 +266,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Buy & Sell Tabs */}
+      {/* Buy & Sell Tabs (unchanged) */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
           {Object.keys(grouped).map(cat => (
@@ -294,7 +308,7 @@ export default function HomePage() {
 
                         {expanded[`${cat}__${sub}`] && (
                           <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                            {items.map(it => <ItemCard key={it.slug} item={it} viewType={activeTab.toLowerCase()} />)}
+                            {items.map(it => <ItemCard key={it.slug + it.type} item={it} viewType={activeTab.toLowerCase()} />)}
                           </div>
                         )}
                       </div>
