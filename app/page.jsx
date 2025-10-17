@@ -75,7 +75,7 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [lastUpdated]);
 
-  // --- Grouping logic ---
+  // --- Grouping ---
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -127,7 +127,7 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // --- Profit logic: multiple sellers < best buyer ---
+  // --- ✅ CORRECT PROFIT LOGIC: Buy from cheapest seller, sell to best buyer ---
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
@@ -135,14 +135,17 @@ export default function HomePage() {
         grouped[cat][sub].forEach(it => {
           if (!it.buyOffers?.length || !it.sellOffers?.length) return;
 
-          const bestBuyer = it.buyOffers.reduce((a, b) =>
+          // 1) Find bedste køber (højeste pris)
+          const bestBuyer = it.sellOffers.reduce((a, b) =>
             a.unitPrice >= b.unitPrice ? a : b
           );
 
-          const profitableSellers = it.sellOffers.filter(
+          // 2) Find alle sælgere (billigste buyOffers) lavere end bedste køberpris
+          const profitableSellers = it.buyOffers.filter(
             s => s.unitPrice < bestBuyer.unitPrice
           );
 
+          // 3) Lav et profitkort for hver profitabel sælger
           profitableSellers.forEach(seller => {
             const profit = bestBuyer.unitPrice - seller.unitPrice;
             if (profit > 0) {
@@ -153,8 +156,8 @@ export default function HomePage() {
                 subCategory: sub,
                 type: it.type,
                 image: it.image,
-                buy: bestBuyer,
-                sell: seller,
+                buy: seller, // hvor vi køber fra
+                sell: bestBuyer, // hvor vi sælger til
                 profitPerUnit: profit
               });
             }
@@ -177,7 +180,7 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // --- Auto-expand search ---
+  // --- Search auto-expand ---
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
     const next = {};
@@ -256,7 +259,7 @@ export default function HomePage() {
                         <h3 className="text-lg font-medium">{sub}</h3>
                         <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                           {groupedProfit[cat][sub].map(p => (
-                            <ProfitCard key={`${p.slug}-${p.sell.kingdomName}`} item={p} />
+                            <ProfitCard key={`${p.slug}-${p.sell.kingdomName}-${p.buy.kingdomName}`} item={p} />
                           ))}
                         </div>
                       </div>
