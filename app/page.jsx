@@ -10,9 +10,11 @@ const API = 'https://api.nomstead.com/open/marketplace';
 
 function prettify(slug) {
   if (!slug) return '';
-  const parts = slug.replace(/-/g, '_').split('_').filter(Boolean).map(
-    p => p.charAt(0).toUpperCase() + p.slice(1)
-  );
+  const parts = slug
+    .replace(/-/g, '_')
+    .split('_')
+    .filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1));
   const idx = parts.findIndex(p => p.toLowerCase() === 'wood');
   if (idx > 0) {
     const wood = parts.splice(idx, 1)[0];
@@ -60,7 +62,9 @@ export default function HomePage() {
     }
   }
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // “X min ago” updater
   useEffect(() => {
@@ -98,9 +102,10 @@ export default function HomePage() {
 
       const offer = {
         unitPrice: Number(entry.pricing?.unitPrice ?? 0),
-        quantity: type === 'buy'
-          ? Number(entry.pricing?.availableQuantity ?? 0)
-          : Number(entry.pricing?.desiredQuantity ?? 0),
+        quantity:
+          type === 'buy'
+            ? Number(entry.pricing?.availableQuantity ?? 0)
+            : Number(entry.pricing?.desiredQuantity ?? 0),
         kingdomUrl: entry.tile?.url || '#',
         kingdomName: entry.tile?.owner || 'kingdom'
       };
@@ -130,8 +135,12 @@ export default function HomePage() {
       Object.keys(grouped[cat]).forEach(sub => {
         grouped[cat][sub].forEach(it => {
           if (!it.buyOffers?.length || !it.sellOffers?.length) return;
-          const lowestBuy = it.buyOffers.reduce((a,b)=>a.unitPrice<=b.unitPrice?a:b);
-          const highestSell = it.sellOffers.reduce((a,b)=>a.unitPrice>=b.unitPrice?a:b);
+          const lowestBuy = it.buyOffers.reduce((a, b) =>
+            a.unitPrice <= b.unitPrice ? a : b
+          );
+          const highestSell = it.sellOffers.reduce((a, b) =>
+            a.unitPrice >= b.unitPrice ? a : b
+          );
           const profit = highestSell.unitPrice - lowestBuy.unitPrice;
           if (profit <= 0) return;
           list.push({
@@ -148,7 +157,7 @@ export default function HomePage() {
         });
       });
     });
-    return list.sort((a,b)=>b.profitPerUnit - a.profitPerUnit);
+    return list.sort((a, b) => b.profitPerUnit - a.profitPerUnit);
   }, [grouped]);
 
   const groupedProfit = useMemo(() => {
@@ -169,7 +178,9 @@ export default function HomePage() {
       const next = {};
       Object.keys(groupedProfit).forEach(cat => {
         next[cat] = true;
-        Object.keys(groupedProfit[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
+        Object.keys(groupedProfit[cat]).forEach(
+          sub => (next[`${cat}__${sub}`] = true)
+        );
       });
       setExpanded(next);
     } else if (activeTab !== 'Profit') {
@@ -181,31 +192,85 @@ export default function HomePage() {
     const next = {};
     Object.keys(grouped).forEach(cat => {
       next[cat] = true;
-      Object.keys(grouped[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
+      Object.keys(grouped[cat]).forEach(
+        sub => (next[`${cat}__${sub}`] = true)
+      );
     });
     setExpanded(next);
   };
   const collapseAll = () => setExpanded({});
+
+  // --- Auto-expand matching categories when searching ---
+  useEffect(() => {
+    if (!query || activeTab === 'Profit') return;
+
+    const next = {};
+    Object.keys(grouped).forEach(cat => {
+      let catHasMatch = false;
+      Object.keys(grouped[cat]).forEach(sub => {
+        const hasMatch = grouped[cat][sub].some(it => {
+          const q = query.toLowerCase();
+          return (
+            it.name.toLowerCase().includes(q) ||
+            it.slug.toLowerCase().includes(q) ||
+            it.category.toLowerCase().includes(q) ||
+            it.subCategory.toLowerCase().includes(q)
+          );
+        });
+        if (hasMatch) {
+          next[`${cat}__${sub}`] = true;
+          catHasMatch = true;
+        }
+      });
+      if (catHasMatch) next[cat] = true;
+    });
+    setExpanded(prev => ({ ...prev, ...next }));
+  }, [query, grouped, activeTab]);
 
   // --- Render ---
   return (
     <div className="space-y-6 pb-12">
       {/* Controls */}
       <div className="flex flex-col items-center gap-3">
-        <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
+        <SearchBar
+          onSearch={setQuery}
+          currentTab={activeTab}
+          allGrouped={grouped}
+        />
         <div className="flex flex-col items-center gap-1">
           <div className="flex gap-3 items-center">
-            <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
-            <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
-            <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
+            <button
+              onClick={fetchData}
+              className="px-3 py-2 bg-white border rounded"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={expandAll}
+              className="px-3 py-2 bg-green-100 rounded"
+            >
+              Expand All
+            </button>
+            <button
+              onClick={collapseAll}
+              className="px-3 py-2 bg-yellow-100 rounded"
+            >
+              Collapse All
+            </button>
           </div>
           {lastUpdated && (
-            <p className="text-xs text-gray-500 mt-1">Last updated {minutesAgo ?? 0} min ago</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Last updated {minutesAgo ?? 0} min ago
+            </p>
           )}
         </div>
       </div>
 
-      <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Tabs
+        tabs={['Buy', 'Sell', 'Profit']}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
       {loading && <Loader />}
 
       {/* PROFIT TAB */}
@@ -214,14 +279,21 @@ export default function HomePage() {
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Buy Low & Sell High</h2>
-              <div className="text-sm text-gray-500">{profitItems.length} items</div>
+              <div className="text-sm text-gray-500">
+                {profitItems.length} items
+              </div>
             </div>
             <div className="mt-4 space-y-6">
               {Object.keys(groupedProfit).length === 0 ? (
-                <div className="text-center text-gray-600">No items with profit at the moment.</div>
+                <div className="text-center text-gray-600">
+                  No items with profit at the moment.
+                </div>
               ) : (
                 Object.keys(groupedProfit).map(cat => (
-                  <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
+                  <section
+                    key={cat}
+                    className="bg-white rounded-lg p-4 shadow-sm"
+                  >
                     <h2 className="text-xl font-semibold">{cat}</h2>
                     {Object.keys(groupedProfit[cat]).map(sub => (
                       <div key={sub} className="mt-3">
@@ -248,9 +320,14 @@ export default function HomePage() {
             <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
               <div
                 className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
-                onClick={() => setExpanded(prev => ({...prev, [cat]: !prev[cat]}))}
+                onClick={() =>
+                  setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))
+                }
               >
-                <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>▶</span> {cat}
+                <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>
+                  ▶
+                </span>{' '}
+                {cat}
               </div>
               {expanded[cat] && (
                 <div className="mt-4 space-y-4">
@@ -269,19 +346,41 @@ export default function HomePage() {
                       <div key={sub}>
                         <div
                           className="text-lg font-medium flex items-center gap-2 cursor-pointer"
-                          onClick={() => setExpanded(prev => ({...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`]}))}
+                          onClick={() =>
+                            setExpanded(prev => ({
+                              ...prev,
+                              [`${cat}__${sub}`]:
+                                !prev[`${cat}__${sub}`]
+                            }))
+                          }
                         >
-                          <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
+                          <span
+                            className={`triangle ${
+                              expanded[`${cat}__${sub}`] ? 'open' : ''
+                            }`}
+                          >
+                            ▶
+                          </span>{' '}
+                          {sub}
                         </div>
 
                         {expanded[`${cat}__${sub}`] && (
                           <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                            {/* her vises ALLE ordrer for hver item */}
                             {items.map(it => {
                               const offers =
                                 activeTab === 'Buy'
-                                  ? it.buyOffers.slice().sort((a,b)=>a.unitPrice - b.unitPrice)
-                                  : it.sellOffers.slice().sort((a,b)=>b.unitPrice - a.unitPrice);
+                                  ? it.buyOffers
+                                      .slice()
+                                      .sort(
+                                        (a, b) =>
+                                          a.unitPrice - b.unitPrice
+                                      )
+                                  : it.sellOffers
+                                      .slice()
+                                      .sort(
+                                        (a, b) =>
+                                          b.unitPrice - a.unitPrice
+                                      );
                               return offers.map((offer, idx) => (
                                 <ItemCard
                                   key={`${it.slug}-${idx}`}
