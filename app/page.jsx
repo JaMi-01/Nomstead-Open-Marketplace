@@ -58,7 +58,7 @@ export default function HomePage() {
     }
   }
 
-  // timer der kun opdaterer “X min ago” lokalt
+  // timer for “x min ago”
   useEffect(() => {
     if (!lastUpdated) return;
     const interval = setInterval(() => {
@@ -70,7 +70,7 @@ export default function HomePage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // grouping
+  // Grouped logic (for Profit only)
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -79,8 +79,8 @@ export default function HomePage() {
       const category = obj.category || 'Misc';
       const sub = obj.subCategory || 'General';
       const detectedType = detectType(category, slug);
-
       const key = `${slug}_${detectedType}`;
+
       if (!map[key]) {
         map[key] = {
           slug,
@@ -158,15 +158,13 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // expand/collapse control
+  // expand/collapse default behavior
   useEffect(() => {
     if (activeTab === 'Profit' && Object.keys(groupedProfit).length) {
       const next = {};
       Object.keys(groupedProfit).forEach(cat => {
         next[cat] = true;
-        Object.keys(groupedProfit[cat]).forEach(sub => {
-          next[`${cat}__${sub}`] = true;
-        });
+        Object.keys(groupedProfit[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
       });
       setExpanded(next);
     } else if (activeTab !== 'Profit') {
@@ -174,26 +172,14 @@ export default function HomePage() {
     }
   }, [activeTab, groupedProfit]);
 
-  const expandAll = () => {
-    const next = {};
-    const src = activeTab === 'Profit' ? groupedProfit : grouped;
-    Object.keys(src).forEach(cat => {
-      next[cat] = true;
-      Object.keys(src[cat]).forEach(sub => next[`${cat}__${sub}`] = true);
-    });
-    setExpanded(next);
-  };
-  const collapseAll = () => setExpanded({});
-
   return (
     <div className="space-y-6 pb-12">
+      {/* Search + Controls */}
       <div className="flex flex-col items-center gap-3">
         <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
         <div className="flex flex-col items-center gap-1">
           <div className="flex gap-3 items-center">
             <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
-            <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
-            <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
           </div>
           {lastUpdated && (
             <p className="text-xs text-gray-500 mt-1">
@@ -272,54 +258,32 @@ export default function HomePage() {
       {/* BUY & SELL TABS */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
-          {Object.keys(grouped).map(cat => (
-            <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-center">
-                <h2
-                  className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
-                  onClick={() => setExpanded(prev => ({...prev, [cat]: !prev[cat]}))}
-                >
-                  <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>▶</span> {cat}
-                </h2>
-                <div className="text-sm text-gray-500">{Object.keys(grouped[cat]).length} subcategories</div>
+          {(() => {
+            const isBuy = activeTab === 'Buy';
+            const data = isBuy ? raw.toBuy : raw.toSell;
+            const filtered = data.filter(entry => {
+              if (!query) return true;
+              const q = query.toLowerCase();
+              const obj = entry.object || {};
+              return (
+                (obj.slug || '').toLowerCase().includes(q) ||
+                (obj.category || '').toLowerCase().includes(q) ||
+                (obj.subCategory || '').toLowerCase().includes(q)
+              );
+            });
+            const sorted = filtered.sort((a,b) =>
+              isBuy
+                ? a.pricing.unitPrice - b.pricing.unitPrice
+                : b.pricing.unitPrice - a.pricing.unitPrice
+            );
+            return (
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {sorted.map((entry, i) => (
+                  <ItemCard key={i} item={entry.object} viewType={isBuy ? 'buy' : 'sell'} />
+                ))}
               </div>
-
-              {expanded[cat] && (
-                <div className="mt-4 space-y-4">
-                  {Object.keys(grouped[cat]).map(sub => {
-                    const items = grouped[cat][sub].filter(it => {
-                      if (!query) return true;
-                      const q = query.toLowerCase();
-                      return (
-                        it.name.toLowerCase().includes(q) ||
-                        it.slug.toLowerCase().includes(q) ||
-                        (it.category+' '+it.subCategory).toLowerCase().includes(q)
-                      );
-                    });
-                    if (!items.length) return null;
-                    return (
-                      <div key={sub}>
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => setExpanded(prev => ({...prev, [`${cat}__${sub}`]: !prev[`${cat}__${sub}`]}))}
-                        >
-                          <h3 className="text-lg font-medium flex items-center gap-2">
-                            <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
-                          </h3>
-                          <div className="text-sm text-gray-500">{items.length} items</div>
-                        </div>
-                        {expanded[`${cat}__${sub}`] && (
-                          <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                            {items.map(it => <ItemCard key={it.slug + it.type} item={it} viewType={activeTab.toLowerCase()} />)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          ))}
+            );
+          })()}
         </div>
       )}
 
