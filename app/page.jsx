@@ -66,7 +66,6 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  // Update “x min ago”
   useEffect(() => {
     if (!lastUpdated) return;
     const interval = setInterval(() => {
@@ -128,31 +127,37 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // --- Profit logic ---
+  // --- Profit logic: multiple sellers < best buyer ---
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
       Object.keys(grouped[cat]).forEach(sub => {
         grouped[cat][sub].forEach(it => {
           if (!it.buyOffers?.length || !it.sellOffers?.length) return;
-          const lowestBuy = it.buyOffers.reduce((a, b) =>
-            a.unitPrice <= b.unitPrice ? a : b
-          );
-          const highestSell = it.sellOffers.reduce((a, b) =>
+
+          const bestBuyer = it.buyOffers.reduce((a, b) =>
             a.unitPrice >= b.unitPrice ? a : b
           );
-          const profit = highestSell.unitPrice - lowestBuy.unitPrice;
-          if (profit <= 0) return;
-          list.push({
-            slug: it.slug,
-            name: it.name,
-            category: cat,
-            subCategory: sub,
-            type: it.type,
-            image: it.image,
-            buy: lowestBuy,
-            sell: highestSell,
-            profitPerUnit: profit
+
+          const profitableSellers = it.sellOffers.filter(
+            s => s.unitPrice < bestBuyer.unitPrice
+          );
+
+          profitableSellers.forEach(seller => {
+            const profit = bestBuyer.unitPrice - seller.unitPrice;
+            if (profit > 0) {
+              list.push({
+                slug: it.slug,
+                name: it.name,
+                category: cat,
+                subCategory: sub,
+                type: it.type,
+                image: it.image,
+                buy: bestBuyer,
+                sell: seller,
+                profitPerUnit: profit
+              });
+            }
           });
         });
       });
@@ -172,7 +177,7 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // Auto-expand search
+  // --- Auto-expand search ---
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
     const next = {};
@@ -229,7 +234,7 @@ export default function HomePage() {
       <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
       {loading && <Loader />}
 
-      {/* --- PROFIT TAB --- */}
+      {/* PROFIT TAB */}
       {!loading && activeTab === 'Profit' && (
         <div className="space-y-6">
           <div className="bg-white rounded-lg p-4 shadow-sm">
@@ -239,7 +244,9 @@ export default function HomePage() {
             </div>
             <div className="mt-4 space-y-6">
               {Object.keys(groupedProfit).length === 0 ? (
-                <div className="text-center text-gray-600">No items with profit at the moment.</div>
+                <div className="text-center text-gray-600">
+                  No items with profit at the moment.
+                </div>
               ) : (
                 Object.keys(groupedProfit).map(cat => (
                   <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
@@ -248,7 +255,9 @@ export default function HomePage() {
                       <div key={sub} className="mt-3">
                         <h3 className="text-lg font-medium">{sub}</h3>
                         <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                          {groupedProfit[cat][sub].map(p => <ProfitCard key={p.slug + p.type} item={p} />)}
+                          {groupedProfit[cat][sub].map(p => (
+                            <ProfitCard key={`${p.slug}-${p.sell.kingdomName}`} item={p} />
+                          ))}
                         </div>
                       </div>
                     ))}
@@ -260,7 +269,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* --- BUY & SELL TABS --- */}
+      {/* BUY & SELL TABS */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
           {Object.keys(grouped).map(cat => {
@@ -302,7 +311,6 @@ export default function HomePage() {
                       });
                       if (!items.length) return null;
 
-                      // 🧮 count all offers instead of unique items
                       const totalOffers = items.reduce((sum, it) => {
                         const offers =
                           activeTab === 'Buy'
