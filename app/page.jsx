@@ -66,7 +66,7 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  // update “x min ago”
+  // Update “x min ago”
   useEffect(() => {
     if (!lastUpdated) return;
     const interval = setInterval(() => {
@@ -128,7 +128,7 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // --- Profit logic (unchanged) ---
+  // --- Profit logic ---
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
@@ -302,6 +302,15 @@ export default function HomePage() {
                       });
                       if (!items.length) return null;
 
+                      // 🧮 count all offers instead of unique items
+                      const totalOffers = items.reduce((sum, it) => {
+                        const offers =
+                          activeTab === 'Buy'
+                            ? it.buyOffers?.length || 0
+                            : it.sellOffers?.length || 0;
+                        return sum + offers;
+                      }, 0);
+
                       return (
                         <div key={sub}>
                           <div className="flex justify-between items-center">
@@ -316,7 +325,7 @@ export default function HomePage() {
                             >
                               <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
                             </h3>
-                            <div className="text-sm text-gray-500">{items.length} items</div>
+                            <div className="text-sm text-gray-500">{totalOffers} items</div>
                           </div>
 
                           {expanded[`${cat}__${sub}`] && (
