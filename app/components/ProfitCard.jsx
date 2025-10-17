@@ -17,6 +17,9 @@ export default function ProfitCard({ item }) {
   const name = item.name || item.slug || 'Item';
   const img = item.image || '/placeholder.png';
 
+  // hvis profit = 0, skjul kort
+  if (profitPerUnit <= 0.0001) return null;
+
   return (
     <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
       <div className="flex gap-3">
@@ -30,7 +33,7 @@ export default function ProfitCard({ item }) {
               <a href={buy.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                 {buy.kingdomName || 'seller'}
               </a>{' '}
-              @ <span className="font-medium text-green-700">{Number(buy.unitPrice).toFixed(4)} gold</span>{' '}
+              @ <span className="font-medium">{parseFloat(buy.unitPrice).toPrecision(4)} gold</span>{' '}
               Qty: {buy.quantity}
             </div>
 
@@ -39,7 +42,7 @@ export default function ProfitCard({ item }) {
               <a href={sell.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                 {sell.kingdomName || 'buyer'}
               </a>{' '}
-              @ <span className="font-medium text-amber-700">{Number(sell.unitPrice).toFixed(4)} gold</span>{' '}
+              @ <span className="font-medium">{parseFloat(sell.unitPrice).toPrecision(4)} gold</span>{' '}
               Qty: {sell.quantity}
             </div>
 
@@ -53,13 +56,13 @@ export default function ProfitCard({ item }) {
                 onChange={e => setBulk(Math.max(1, Math.min(maxTradable, Number(e.target.value || 1))))}
                 className="w-24 p-2 border rounded"
               />
-              <div className="ml-auto text-sm font-semibold text-green-800">
+              <div className="ml-auto text-sm font-semibold">
                 Total profit: {totalProfit.toFixed(4)} gold
               </div>
             </div>
 
             <div className="mt-2 text-xs text-gray-600">
-              Profit per unit: <span className="font-medium text-blue-700">{profitPerUnit.toFixed(4)} gold</span>
+              Profit per unit: <span className="font-medium">{profitPerUnit.toFixed(4)} gold</span>
             </div>
           </div>
         </div>
