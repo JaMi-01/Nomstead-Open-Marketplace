@@ -36,6 +36,8 @@ export default function HomePage() {
   const [expanded, setExpanded] = useState({});
   const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [minutesAgo, setMinutesAgo] = useState(null);
 
   async function fetchData() {
     try {
@@ -45,6 +47,8 @@ export default function HomePage() {
       if (!res.ok) throw new Error('API ' + res.status);
       const j = await res.json();
       setRaw({ toBuy: j.toBuy || [], toSell: j.toSell || [] });
+      setLastUpdated(new Date());
+      setMinutesAgo(0);
     } catch (e) {
       console.error(e);
       setError('Could not fetch marketplace data.');
@@ -54,9 +58,19 @@ export default function HomePage() {
     }
   }
 
+  // timer der kun opdaterer “X min ago” lokalt
+  useEffect(() => {
+    if (!lastUpdated) return;
+    const interval = setInterval(() => {
+      const diffMs = Date.now() - lastUpdated.getTime();
+      setMinutesAgo(Math.floor(diffMs / 60000));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
+
   useEffect(() => { fetchData(); }, []);
 
-  // Group data
+  // grouping
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -90,7 +104,6 @@ export default function HomePage() {
       if (type === 'buy') map[key].buyOffers.push(offer);
       else map[key].sellOffers.push(offer);
     };
-
     (raw.toBuy || []).forEach(e => add(e,'buy'));
     (raw.toSell || []).forEach(e => add(e,'sell'));
 
@@ -105,7 +118,7 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // Profit logic: only match same category + subcategory + type
+  // profit beregning
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
@@ -114,15 +127,8 @@ export default function HomePage() {
           if (!it.buyOffers?.length || !it.sellOffers?.length) return;
           const lowestBuy = it.buyOffers.reduce((a,b)=>a.unitPrice<=b.unitPrice?a:b);
           const highestSell = it.sellOffers.reduce((a,b)=>a.unitPrice>=b.unitPrice?a:b);
-
           const profit = highestSell.unitPrice - lowestBuy.unitPrice;
           if (profit <= 0) return;
-
-          // ensure both offers belong to same type
-          const buyType = it.type;
-          const sellType = it.type; // since both from same item structure
-          if (buyType !== sellType) return;
-
           list.push({
             slug: it.slug,
             name: it.name,
@@ -152,30 +158,21 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // Search expand (Buy/Sell only)
+  // expand/collapse control
   useEffect(() => {
-    if (!query || activeTab === 'Profit') return;
-    const next = {};
-    Object.keys(grouped).forEach(cat => {
-      let catHas = false;
-      Object.keys(grouped[cat]).forEach(sub => {
-        const matches = grouped[cat][sub].filter(it => {
-          const q = query.toLowerCase();
-          return (
-            it.name.toLowerCase().includes(q) ||
-            it.slug.toLowerCase().includes(q) ||
-            (it.category+' '+it.subCategory).toLowerCase().includes(q)
-          );
-        });
-        if (matches.length) {
+    if (activeTab === 'Profit' && Object.keys(groupedProfit).length) {
+      const next = {};
+      Object.keys(groupedProfit).forEach(cat => {
+        next[cat] = true;
+        Object.keys(groupedProfit[cat]).forEach(sub => {
           next[`${cat}__${sub}`] = true;
-          catHas = true;
-        }
+        });
       });
-      if (catHas) next[cat] = true;
-    });
-    setExpanded(prev => ({...prev, ...next}));
-  }, [query, grouped, activeTab]);
+      setExpanded(next);
+    } else if (activeTab !== 'Profit') {
+      setExpanded({});
+    }
+  }, [activeTab, groupedProfit]);
 
   const expandAll = () => {
     const next = {};
@@ -190,24 +187,31 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-3">
         <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
-        <div className="flex gap-3 items-center">
-          <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
-          <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
-          <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex gap-3 items-center">
+            <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
+            <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
+            <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
+          </div>
+          {lastUpdated && (
+            <p className="text-xs text-gray-500 mt-1">
+              Last updated {minutesAgo ?? 0} min ago
+            </p>
+          )}
         </div>
       </div>
 
       <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
       {loading && <Loader />}
 
-      {/* Profit Tab */}
+      {/* PROFIT TAB */}
       {!loading && activeTab === 'Profit' && (
         <div className="space-y-6">
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Buy low & Sell high</h2>
+              <h2 className="text-xl font-semibold">Buy Low & Sell High</h2>
               <div className="text-sm text-gray-500">{profitItems.length} items</div>
             </div>
 
@@ -246,7 +250,6 @@ export default function HomePage() {
                                   </h3>
                                   <div className="text-sm text-gray-500">{items.length} items</div>
                                 </div>
-
                                 {expanded[`${cat}__${sub}`] && (
                                   <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                     {items.map(p => <ProfitCard key={p.slug + p.type} item={p} />)}
@@ -266,7 +269,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Buy & Sell Tabs (unchanged) */}
+      {/* BUY & SELL TABS */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
           {Object.keys(grouped).map(cat => (
@@ -305,7 +308,6 @@ export default function HomePage() {
                           </h3>
                           <div className="text-sm text-gray-500">{items.length} items</div>
                         </div>
-
                         {expanded[`${cat}__${sub}`] && (
                           <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                             {items.map(it => <ItemCard key={it.slug + it.type} item={it} viewType={activeTab.toLowerCase()} />)}
