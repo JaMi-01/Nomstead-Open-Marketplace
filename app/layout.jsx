@@ -10,16 +10,15 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gradient-to-b from-white to-[#fdf6e3] text-gray-800">
+      <body className="min-h-screen bg-[#fdf6e3] text-gray-800">
         <header className="bg-white shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-6 text-center">
             <h1 className="text-3xl font-extrabold">Nomstead Open Marketplace</h1>
-            <p className="text-sm italic text-gray-600 mt-1">Version 4.3</p>
+            <p className="text-sm italic text-gray-600 mt-1">Version 4.3.8</p>
           </div>
         </header>
 
         <main className="max-w-6xl mx-auto px-4 mt-6">
-          {/* Donate block under title */}
           <DonateSnippet />
           {children}
         </main>
