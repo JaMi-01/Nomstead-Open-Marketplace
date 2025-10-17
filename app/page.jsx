@@ -127,7 +127,7 @@ export default function HomePage() {
     return byCat;
   }, [raw]);
 
-  // --- ✅ CORRECT PROFIT LOGIC: Buy from cheapest seller, sell to best buyer ---
+  // --- ✅ Correct Profit logic: Buy from cheapest seller, sell to best buyer ---
   const profitItems = useMemo(() => {
     const list = [];
     Object.keys(grouped).forEach(cat => {
@@ -135,20 +135,18 @@ export default function HomePage() {
         grouped[cat][sub].forEach(it => {
           if (!it.buyOffers?.length || !it.sellOffers?.length) return;
 
-          // 1) Find bedste køber (højeste pris)
           const bestBuyer = it.sellOffers.reduce((a, b) =>
             a.unitPrice >= b.unitPrice ? a : b
           );
 
-          // 2) Find alle sælgere (billigste buyOffers) lavere end bedste køberpris
           const profitableSellers = it.buyOffers.filter(
             s => s.unitPrice < bestBuyer.unitPrice
           );
 
-          // 3) Lav et profitkort for hver profitabel sælger
           profitableSellers.forEach(seller => {
             const profit = bestBuyer.unitPrice - seller.unitPrice;
-            if (profit > 0) {
+            // filtrer direkte her
+            if (profit > 0.0001) {
               list.push({
                 slug: it.slug,
                 name: it.name,
@@ -156,8 +154,8 @@ export default function HomePage() {
                 subCategory: sub,
                 type: it.type,
                 image: it.image,
-                buy: seller, // hvor vi køber fra
-                sell: bestBuyer, // hvor vi sælger til
+                buy: seller,
+                sell: bestBuyer,
                 profitPerUnit: profit
               });
             }
@@ -219,7 +217,6 @@ export default function HomePage() {
   // --- Render ---
   return (
     <div className="space-y-6 pb-12">
-      {/* Controls */}
       <div className="flex flex-col items-center gap-3">
         <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
         <div className="flex flex-col items-center gap-1">
