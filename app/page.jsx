@@ -66,7 +66,7 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  // “X min ago” updater
+  // update “x min ago”
   useEffect(() => {
     if (!lastUpdated) return;
     const interval = setInterval(() => {
@@ -76,7 +76,7 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [lastUpdated]);
 
-  // --- Grouping logic (Buy/Sell & Profit) ---
+  // --- Grouping logic ---
   const grouped = useMemo(() => {
     const map = {};
     const add = (entry, type) => {
@@ -172,38 +172,9 @@ export default function HomePage() {
     return map;
   }, [profitItems]);
 
-  // expand/collapse for Profit default expanded
-  useEffect(() => {
-    if (activeTab === 'Profit' && Object.keys(groupedProfit).length) {
-      const next = {};
-      Object.keys(groupedProfit).forEach(cat => {
-        next[cat] = true;
-        Object.keys(groupedProfit[cat]).forEach(
-          sub => (next[`${cat}__${sub}`] = true)
-        );
-      });
-      setExpanded(next);
-    } else if (activeTab !== 'Profit') {
-      setExpanded({});
-    }
-  }, [activeTab, groupedProfit]);
-
-  const expandAll = () => {
-    const next = {};
-    Object.keys(grouped).forEach(cat => {
-      next[cat] = true;
-      Object.keys(grouped[cat]).forEach(
-        sub => (next[`${cat}__${sub}`] = true)
-      );
-    });
-    setExpanded(next);
-  };
-  const collapseAll = () => setExpanded({});
-
-  // --- Auto-expand matching categories when searching ---
+  // Auto-expand search
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
-
     const next = {};
     Object.keys(grouped).forEach(cat => {
       let catHasMatch = false;
@@ -227,81 +198,57 @@ export default function HomePage() {
     setExpanded(prev => ({ ...prev, ...next }));
   }, [query, grouped, activeTab]);
 
+  const expandAll = () => {
+    const next = {};
+    Object.keys(grouped).forEach(cat => {
+      next[cat] = true;
+      Object.keys(grouped[cat]).forEach(sub => (next[`${cat}__${sub}`] = true));
+    });
+    setExpanded(next);
+  };
+  const collapseAll = () => setExpanded({});
+
   // --- Render ---
   return (
     <div className="space-y-6 pb-12">
       {/* Controls */}
       <div className="flex flex-col items-center gap-3">
-        <SearchBar
-          onSearch={setQuery}
-          currentTab={activeTab}
-          allGrouped={grouped}
-        />
+        <SearchBar onSearch={setQuery} currentTab={activeTab} allGrouped={grouped} />
         <div className="flex flex-col items-center gap-1">
           <div className="flex gap-3 items-center">
-            <button
-              onClick={fetchData}
-              className="px-3 py-2 bg-white border rounded"
-            >
-              Refresh
-            </button>
-            <button
-              onClick={expandAll}
-              className="px-3 py-2 bg-green-100 rounded"
-            >
-              Expand All
-            </button>
-            <button
-              onClick={collapseAll}
-              className="px-3 py-2 bg-yellow-100 rounded"
-            >
-              Collapse All
-            </button>
+            <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
+            <button onClick={expandAll} className="px-3 py-2 bg-green-100 rounded">Expand All</button>
+            <button onClick={collapseAll} className="px-3 py-2 bg-yellow-100 rounded">Collapse All</button>
           </div>
           {lastUpdated && (
-            <p className="text-xs text-gray-500 mt-1">
-              Last updated {minutesAgo ?? 0} min ago
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Last updated {minutesAgo ?? 0} min ago</p>
           )}
         </div>
       </div>
 
-      <Tabs
-        tabs={['Buy', 'Sell', 'Profit']}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+      <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
       {loading && <Loader />}
 
-      {/* PROFIT TAB */}
+      {/* --- PROFIT TAB --- */}
       {!loading && activeTab === 'Profit' && (
         <div className="space-y-6">
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Buy Low & Sell High</h2>
-              <div className="text-sm text-gray-500">
-                {profitItems.length} items
-              </div>
+              <div className="text-sm text-gray-500">{profitItems.length} items</div>
             </div>
             <div className="mt-4 space-y-6">
               {Object.keys(groupedProfit).length === 0 ? (
-                <div className="text-center text-gray-600">
-                  No items with profit at the moment.
-                </div>
+                <div className="text-center text-gray-600">No items with profit at the moment.</div>
               ) : (
                 Object.keys(groupedProfit).map(cat => (
-                  <section
-                    key={cat}
-                    className="bg-white rounded-lg p-4 shadow-sm"
-                  >
+                  <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
                     <h2 className="text-xl font-semibold">{cat}</h2>
                     {Object.keys(groupedProfit[cat]).map(sub => (
                       <div key={sub} className="mt-3">
                         <h3 className="text-lg font-medium">{sub}</h3>
                         <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                          {groupedProfit[cat][sub].map(p => (
-                            <ProfitCard key={p.slug + p.type} item={p} />
-                          ))}
+                          {groupedProfit[cat][sub].map(p => <ProfitCard key={p.slug + p.type} item={p} />)}
                         </div>
                       </div>
                     ))}
@@ -313,94 +260,90 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* BUY & SELL TABS */}
+      {/* --- BUY & SELL TABS --- */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
-          {Object.keys(grouped).map(cat => (
-            <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
-              <div
-                className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
-                onClick={() =>
-                  setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))
-                }
-              >
-                <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>
-                  ▶
-                </span>{' '}
-                {cat}
-              </div>
-              {expanded[cat] && (
-                <div className="mt-4 space-y-4">
-                  {Object.keys(grouped[cat]).map(sub => {
-                    const items = grouped[cat][sub].filter(it => {
-                      if (!query) return true;
-                      const q = query.toLowerCase();
-                      return (
-                        it.name.toLowerCase().includes(q) ||
-                        it.slug.toLowerCase().includes(q)
-                      );
-                    });
-                    if (!items.length) return null;
+          {Object.keys(grouped).map(cat => {
+            const visibleSubs = Object.keys(grouped[cat]).filter(sub => {
+              const filteredItems = grouped[cat][sub].filter(it => {
+                if (!query) return true;
+                const q = query.toLowerCase();
+                return (
+                  it.name.toLowerCase().includes(q) ||
+                  it.slug.toLowerCase().includes(q)
+                );
+              });
+              return filteredItems.length > 0;
+            });
+            if (visibleSubs.length === 0) return null;
 
-                    return (
-                      <div key={sub}>
-                        <div
-                          className="text-lg font-medium flex items-center gap-2 cursor-pointer"
-                          onClick={() =>
-                            setExpanded(prev => ({
-                              ...prev,
-                              [`${cat}__${sub}`]:
-                                !prev[`${cat}__${sub}`]
-                            }))
-                          }
-                        >
-                          <span
-                            className={`triangle ${
-                              expanded[`${cat}__${sub}`] ? 'open' : ''
-                            }`}
-                          >
-                            ▶
-                          </span>{' '}
-                          {sub}
-                        </div>
-
-                        {expanded[`${cat}__${sub}`] && (
-                          <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                            {items.map(it => {
-                              const offers =
-                                activeTab === 'Buy'
-                                  ? it.buyOffers
-                                      .slice()
-                                      .sort(
-                                        (a, b) =>
-                                          a.unitPrice - b.unitPrice
-                                      )
-                                  : it.sellOffers
-                                      .slice()
-                                      .sort(
-                                        (a, b) =>
-                                          b.unitPrice - a.unitPrice
-                                      );
-                              return offers.map((offer, idx) => (
-                                <ItemCard
-                                  key={`${it.slug}-${idx}`}
-                                  item={{
-                                    ...it,
-                                    singleOffer: offer
-                                  }}
-                                  viewType={activeTab.toLowerCase()}
-                                />
-                              ));
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+            return (
+              <section key={cat} className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="flex justify-between items-center">
+                  <h2
+                    className="text-xl font-semibold flex items-center gap-2 cursor-pointer"
+                    onClick={() => setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                  >
+                    <span className={`triangle ${expanded[cat] ? 'open' : ''}`}>▶</span> {cat}
+                  </h2>
+                  <div className="text-sm text-gray-500">{visibleSubs.length} subcategories</div>
                 </div>
-              )}
-            </section>
-          ))}
+
+                {expanded[cat] && (
+                  <div className="mt-4 space-y-4">
+                    {visibleSubs.map(sub => {
+                      const items = grouped[cat][sub].filter(it => {
+                        if (!query) return true;
+                        const q = query.toLowerCase();
+                        return (
+                          it.name.toLowerCase().includes(q) ||
+                          it.slug.toLowerCase().includes(q)
+                        );
+                      });
+                      if (!items.length) return null;
+
+                      return (
+                        <div key={sub}>
+                          <div className="flex justify-between items-center">
+                            <h3
+                              className="text-lg font-medium flex items-center gap-2 cursor-pointer"
+                              onClick={() =>
+                                setExpanded(prev => ({
+                                  ...prev,
+                                  [`${cat}__${sub}`]: !prev[`${cat}__${sub}`]
+                                }))
+                              }
+                            >
+                              <span className={`triangle ${expanded[`${cat}__${sub}`] ? 'open' : ''}`}>▶</span> {sub}
+                            </h3>
+                            <div className="text-sm text-gray-500">{items.length} items</div>
+                          </div>
+
+                          {expanded[`${cat}__${sub}`] && (
+                            <div className="mt-3 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                              {items.map(it => {
+                                const offers =
+                                  activeTab === 'Buy'
+                                    ? it.buyOffers.slice().sort((a,b)=>a.unitPrice - b.unitPrice)
+                                    : it.sellOffers.slice().sort((a,b)=>b.unitPrice - a.unitPrice);
+                                return offers.map((offer, idx) => (
+                                  <ItemCard
+                                    key={`${it.slug}-${idx}`}
+                                    item={{ ...it, singleOffer: offer }}
+                                    viewType={activeTab.toLowerCase()}
+                                  />
+                                ));
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
 
