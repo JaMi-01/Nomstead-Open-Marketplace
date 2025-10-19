@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 
 /**
- * ItemCard (v4.4.3a)
- * - Shows exact API gold values (no rounding)
+ * ItemCard (v4.4.3b)
+ * - Shows exact price text from API (no rounding)
+ * - Total now limited to 4 decimals
  */
 export default function ItemCard({ item, viewType = 'buy' }) {
   const [amount, setAmount] = useState(1);
@@ -13,11 +14,14 @@ export default function ItemCard({ item, viewType = 'buy' }) {
   const category = item.category || 'Misc';
   const subCategory = item.subCategory || 'General';
   const offer = item.singleOffer || {};
-  const unitPrice = Number(offer.unitPrice ?? 0);
+
+  // Use API string directly to avoid JS rounding
+  const unitPriceStr = offer.unitPrice?.toString() ?? '0';
+  const unitPriceNum = Number(offer.unitPrice ?? 0);
   const qty = Number(offer.quantity ?? 0);
   const kingdomUrl = offer.kingdomUrl || '#';
   const kingdomName = offer.kingdomName || 'kingdom';
-  const total = (unitPrice * amount).toFixed(4); // total can stay fixed
+  const total = (unitPriceNum * amount).toFixed(4); // clean 4 decimals
 
   const cardColor =
     viewType === 'buy' ? 'from-green-50 to-white' : 'from-yellow-50 to-white';
@@ -48,7 +52,7 @@ export default function ItemCard({ item, viewType = 'buy' }) {
                 <a href={kingdomUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                   {kingdomName}
                 </a>{' '}
-                @ <span className="font-medium">{unitPrice}</span> gold
+                @ <span className="font-medium">{unitPriceStr}</span> gold
                 <div className="text-xs text-gray-600">Qty: {qty}</div>
               </div>
             ) : (
@@ -57,7 +61,7 @@ export default function ItemCard({ item, viewType = 'buy' }) {
                 <a href={kingdomUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                   {kingdomName}
                 </a>{' '}
-                @ <span className="font-medium">{unitPrice}</span> gold
+                @ <span className="font-medium">{unitPriceStr}</span> gold
                 <div className="text-xs text-gray-600">Qty: {qty}</div>
               </div>
             )}
