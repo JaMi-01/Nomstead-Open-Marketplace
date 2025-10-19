@@ -2,14 +2,14 @@
 import React, { useState } from 'react';
 
 /**
- * ItemCard (v4.4.3)
- * - Displays object.metadata.title instead of slug
+ * ItemCard (v4.4.3a)
+ * - Shows exact API gold values (no rounding)
  */
 export default function ItemCard({ item, viewType = 'buy' }) {
   const [amount, setAmount] = useState(1);
 
   const img = item.image || '/placeholder.png';
-  const name = item.name || item.slug || 'Item'; // now passed in from metadata.title
+  const name = item.name || item.slug || 'Item';
   const category = item.category || 'Misc';
   const subCategory = item.subCategory || 'General';
   const offer = item.singleOffer || {};
@@ -17,7 +17,7 @@ export default function ItemCard({ item, viewType = 'buy' }) {
   const qty = Number(offer.quantity ?? 0);
   const kingdomUrl = offer.kingdomUrl || '#';
   const kingdomName = offer.kingdomName || 'kingdom';
-  const total = (unitPrice * amount).toFixed(4);
+  const total = (unitPrice * amount).toFixed(4); // total can stay fixed
 
   const cardColor =
     viewType === 'buy' ? 'from-green-50 to-white' : 'from-yellow-50 to-white';
@@ -48,7 +48,7 @@ export default function ItemCard({ item, viewType = 'buy' }) {
                 <a href={kingdomUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                   {kingdomName}
                 </a>{' '}
-                @ <span className="font-medium">{unitPrice.toFixed(4)}</span> gold
+                @ <span className="font-medium">{unitPrice}</span> gold
                 <div className="text-xs text-gray-600">Qty: {qty}</div>
               </div>
             ) : (
@@ -57,7 +57,7 @@ export default function ItemCard({ item, viewType = 'buy' }) {
                 <a href={kingdomUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                   {kingdomName}
                 </a>{' '}
-                @ <span className="font-medium">{unitPrice.toFixed(4)}</span> gold
+                @ <span className="font-medium">{unitPrice}</span> gold
                 <div className="text-xs text-gray-600">Qty: {qty}</div>
               </div>
             )}
