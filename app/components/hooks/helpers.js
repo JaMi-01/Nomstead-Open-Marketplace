@@ -1,10 +1,12 @@
-/** Helper utilities for marketplace data */
+/** Helper utilities for marketplace data (v4.4.3)
+ *  Display now uses object.metadata.title instead of prettified slug
+ */
 
-/** Capitalize and format slug for fallback display names */
-export function prettify(slug) {
-  if (!slug) return '';
-  const parts = slug.replace(/-/g, '_').split('_').filter(Boolean);
-  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+/** Extract readable title for display */
+export function getDisplayName(obj) {
+  if (obj?.metadata?.title) return obj.metadata.title.trim();
+  if (obj?.slug) return obj.slug.replace(/-/g, ' ');
+  return 'Unknown Item';
 }
 
 /** Determine general type from category or slug */
@@ -20,14 +22,14 @@ export function detectType(category, slug) {
 
 /**
  * Group raw API data by category/subcategory
- * Returns nested structure: grouped[category][subCategory] = [items]
+ * Returns grouped[category][subCategory] = [items]
  */
-export function groupItems(raw, prettifyFn = prettify, detectFn = detectType) {
+export function groupItems(raw, detectFn = detectType) {
   const map = {};
 
   const add = (entry, type) => {
     const obj = entry.object || {};
-    const slug = obj.slug || obj.metadata || 'unknown';
+    const slug = obj.slug || 'unknown';
     const category = obj.category || 'Misc';
     const sub = obj.subCategory || 'General';
     const detectedType = detectFn(category, slug);
@@ -36,7 +38,7 @@ export function groupItems(raw, prettifyFn = prettify, detectFn = detectType) {
     if (!map[key]) {
       map[key] = {
         slug,
-        name: prettifyFn(slug),
+        name: getDisplayName(obj), // 👈 now uses metadata.title
         category,
         subCategory: sub,
         type: detectedType,
