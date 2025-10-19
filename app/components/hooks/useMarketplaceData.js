@@ -1,12 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { prettify, detectType, groupItems } from './helpers';
+import { detectType, groupItems } from './helpers';
 import useProfitCalc from './useProfitCalc';
 
 const API = 'https://api.nomstead.com/open/marketplace';
 
 /**
- * Main hook controlling marketplace state and logic
+ * useMarketplaceData (v4.4.3)
+ * - Groups items by category/subcategory
+ * - Uses metadata.title for display
+ * - Keeps slug for technical matching
  */
 export default function useMarketplaceData(activeTab, query) {
   const [raw, setRaw] = useState({ toBuy: [], toSell: [] });
@@ -16,7 +19,6 @@ export default function useMarketplaceData(activeTab, query) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [minutesAgo, setMinutesAgo] = useState(null);
 
-  /** Fetch data from API */
   async function fetchData() {
     try {
       setLoading(true);
@@ -36,10 +38,8 @@ export default function useMarketplaceData(activeTab, query) {
     }
   }
 
-  /** Initial fetch */
   useEffect(() => { fetchData(); }, []);
 
-  /** Update time counter */
   useEffect(() => {
     if (!lastUpdated) return;
     const interval = setInterval(() => {
@@ -49,13 +49,10 @@ export default function useMarketplaceData(activeTab, query) {
     return () => clearInterval(interval);
   }, [lastUpdated]);
 
-  /** Grouping of marketplace data */
-  const grouped = groupItems(raw, prettify, detectType);
-
-  /** Profit calculations */
+  const grouped = groupItems(raw, detectType);
   const { profitItems, groupedProfit } = useProfitCalc(grouped);
 
-  /** Auto-expand search matches (Buy/Sell only) */
+  // Auto-expand on search (Buy/Sell)
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
     const next = {};
@@ -81,7 +78,6 @@ export default function useMarketplaceData(activeTab, query) {
     setExpanded(prev => ({ ...prev, ...next }));
   }, [query, grouped, activeTab]);
 
-  /** Expand/Collapse helpers */
   const expandAll = () => {
     const next = {};
     Object.keys(grouped).forEach(cat => {
