@@ -2,38 +2,39 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * ProfitCard (v4.4.3d)
- * - Uses exact API strings for prices (no rounding)
- * - Total profit and per-unit profit follow same decimal precision as sell price
+ * ProfitCard (v4.4.3f)
+ * - Uses exact API strings for buy/sell prices (no rounding)
+ * - Uses profitPerUnitStr and profitDecimals from hook for consistent display
+ * - Filters for zero profit is handled in hook; here we just render
  */
 export default function ProfitCard({ item }) {
   const buy = item.buy;
   const sell = item.sell;
 
-  // Keep API string values directly
+  // Exact strings from API preserved upstream
   const buyPriceStr = buy.unitPrice ?? '0';
   const sellPriceStr = sell.unitPrice ?? '0';
-  const buyPriceNum = Number(buyPriceStr);
-  const sellPriceNum = Number(sellPriceStr);
 
-  // Calculate decimals based on sell price (so profit matches visible precision)
-  const decimals = sellPriceStr.includes('.') ? sellPriceStr.split('.')[1].length : 0;
+  // Profit from hook (both numeric + string + decimals)
+  const profitPerUnitNum = Number(item.profitPerUnit ?? 0);
+  const profitPerUnitStr = item.profitPerUnitStr ?? '0';
+  const profitDecimals = Number.isInteger(item.profitDecimals)
+    ? item.profitDecimals
+    : (sellPriceStr.includes('.') ? sellPriceStr.split('.')[1].length : 0);
 
-  const profitPerUnit = sellPriceNum - buyPriceNum;
   const maxTradable = Math.min(Number(buy.quantity || 0), Number(sell.quantity || 0));
 
   const [bulk, setBulk] = useState(maxTradable > 0 ? maxTradable : 1);
-  const [totalProfit, setTotalProfit] = useState(profitPerUnit * bulk);
+  const [totalProfit, setTotalProfit] = useState(profitPerUnitNum * bulk);
 
   useEffect(() => {
-    setTotalProfit(profitPerUnit * Math.max(1, Number(bulk || 1)));
-  }, [bulk, profitPerUnit]);
+    setTotalProfit(profitPerUnitNum * Math.max(1, Number(bulk || 1)));
+  }, [bulk, profitPerUnitNum]);
 
   const name = item.name || item.slug || 'Item';
   const img = item.image || '/placeholder.png';
 
-  const formattedProfitPerUnit = profitPerUnit.toFixed(decimals);
-  const formattedTotalProfit = totalProfit.toFixed(decimals);
+  const formattedTotalProfit = totalProfit.toFixed(profitDecimals);
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
@@ -76,7 +77,7 @@ export default function ProfitCard({ item }) {
                 min="1"
                 max={maxTradable}
                 value={bulk}
-                onChange={e =>
+                onChange={(e) =>
                   setBulk(Math.max(1, Math.min(maxTradable, Number(e.target.value || 1))))
                 }
                 className="w-24 p-2 border rounded"
@@ -88,7 +89,7 @@ export default function ProfitCard({ item }) {
 
             <div className="mt-2 text-xs text-gray-600">
               Profit per unit:{' '}
-              <span className="font-medium">{formattedProfitPerUnit} gold</span>
+              <span className="font-medium">{profitPerUnitStr} gold</span>
             </div>
           </div>
         </div>
