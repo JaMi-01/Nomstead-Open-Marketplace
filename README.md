@@ -1,4 +1,4 @@
-# Nomstead Open Marketplace — Version 4.3
+# Nomstead Open Marketplace — Version 4.4
 
 A fast, modern web marketplace built with Next.js and Tailwind CSS for tracking Nomstead game market offers.
 
