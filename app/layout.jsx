@@ -14,7 +14,7 @@ export default function RootLayout({ children }) {
         <header className="bg-white shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-6 text-center">
             <h1 className="text-3xl font-extrabold">Nomstead Open Marketplace</h1>
-            <p className="text-sm italic text-gray-600 mt-1">Version 4.3.8</p>
+            <p className="text-sm italic text-gray-600 mt-1">Version 4.4</p>
           </div>
         </header>
 
