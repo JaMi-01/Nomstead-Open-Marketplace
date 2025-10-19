@@ -1,6 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 
+/**
+ * ProfitCard (v4.4.3)
+ * - Uses metadata.title for display name
+ */
 export default function ProfitCard({ item }) {
   const buy = item.buy;
   const sell = item.sell;
@@ -14,7 +18,7 @@ export default function ProfitCard({ item }) {
     setTotalProfit(profitPerUnit * Math.max(1, Number(bulk || 1)));
   }, [bulk, profitPerUnit]);
 
-  const name = item.name || item.slug || 'Item';
+  const name = item.name || item.slug || 'Item'; // metadata.title
   const img = item.image || '/placeholder.png';
 
   return (
