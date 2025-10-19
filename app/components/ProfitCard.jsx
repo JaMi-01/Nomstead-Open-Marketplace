@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * ProfitCard (v4.4.3a)
- * - Displays exact API gold values (no rounding)
+ * ProfitCard (v4.4.3b)
+ * - Shows exact API gold values (no rounding)
+ * - Keeps calculated totals with 4 decimals
  */
 export default function ProfitCard({ item }) {
   const buy = item.buy;
@@ -21,6 +22,10 @@ export default function ProfitCard({ item }) {
   const name = item.name || item.slug || 'Item';
   const img = item.image || '/placeholder.png';
 
+  // Keep API strings directly to avoid hidden rounding
+  const buyPrice = buy.unitPrice?.toString() ?? '0';
+  const sellPrice = sell.unitPrice?.toString() ?? '0';
+
   return (
     <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-4 shadow-sm card-hover">
       <div className="flex gap-3">
@@ -34,7 +39,7 @@ export default function ProfitCard({ item }) {
               <a href={buy.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                 {buy.kingdomName || 'seller'}
               </a>{' '}
-              @ <span className="font-medium">{buy.unitPrice}</span> gold Qty: {buy.quantity}
+              @ <span className="font-medium">{buyPrice}</span> gold Qty: {buy.quantity}
             </div>
 
             <div>
@@ -42,7 +47,7 @@ export default function ProfitCard({ item }) {
               <a href={sell.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                 {sell.kingdomName || 'buyer'}
               </a>{' '}
-              @ <span className="font-medium">{sell.unitPrice}</span> gold Qty: {sell.quantity}
+              @ <span className="font-medium">{sellPrice}</span> gold Qty: {sell.quantity}
             </div>
 
             <div className="mt-3 flex items-center gap-2">
