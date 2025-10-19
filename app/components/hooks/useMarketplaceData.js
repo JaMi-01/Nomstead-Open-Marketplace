@@ -5,12 +5,6 @@ import useProfitCalc from './useProfitCalc';
 
 const API = 'https://api.nomstead.com/open/marketplace';
 
-/**
- * useMarketplaceData (v4.4.3)
- * - Groups items by category/subcategory
- * - Uses metadata.title for display
- * - Keeps slug for technical matching
- */
 export default function useMarketplaceData(activeTab, query) {
   const [raw, setRaw] = useState({ toBuy: [], toSell: [] });
   const [loading, setLoading] = useState(true);
@@ -49,10 +43,62 @@ export default function useMarketplaceData(activeTab, query) {
     return () => clearInterval(interval);
   }, [lastUpdated]);
 
-  const grouped = groupItems(raw, detectType);
+  // Override groupItems locally so we can inject raw strings
+  function safeGroupItems(rawData) {
+    const grouped = {};
+    const add = (entry, type) => {
+      const obj = entry.object || {};
+      const slug = obj.slug || 'unknown';
+      const category = obj.category || 'Misc';
+      const sub = obj.subCategory || 'General';
+      const detectedType = detectType(category, slug);
+      const key = `${slug}_${detectedType}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          slug,
+          name: obj.metadata?.title || slug,
+          category,
+          subCategory: sub,
+          type: detectedType,
+          image: obj.imageUrl || obj.thumbnailImageUrl || '',
+          buyOffers: [],
+          sellOffers: []
+        };
+      }
+
+      const offer = {
+        // 👇 keep as string to preserve exact decimals
+        unitPrice: entry.pricing?.unitPrice?.toString() ?? '0',
+        quantity:
+          type === 'buy'
+            ? Number(entry.pricing?.availableQuantity ?? 0)
+            : Number(entry.pricing?.desiredQuantity ?? 0),
+        kingdomUrl: entry.tile?.url || '#',
+        kingdomName: entry.tile?.owner || 'kingdom'
+      };
+
+      if (type === 'buy') grouped[key].buyOffers.push(offer);
+      else grouped[key].sellOffers.push(offer);
+    };
+
+    (rawData.toBuy || []).forEach(e => add(e, 'buy'));
+    (rawData.toSell || []).forEach(e => add(e, 'sell'));
+
+    const byCat = {};
+    Object.values(grouped).forEach(it => {
+      const cat = it.category || 'Misc';
+      const sub = it.subCategory || 'General';
+      byCat[cat] ??= {};
+      byCat[cat][sub] ??= [];
+      byCat[cat][sub].push(it);
+    });
+    return byCat;
+  }
+
+  const grouped = safeGroupItems(raw);
   const { profitItems, groupedProfit } = useProfitCalc(grouped);
 
-  // Auto-expand on search (Buy/Sell)
+  // Auto-expand on search (unchanged)
   useEffect(() => {
     if (!query || activeTab === 'Profit') return;
     const next = {};
