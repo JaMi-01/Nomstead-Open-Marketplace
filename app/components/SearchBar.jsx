@@ -2,32 +2,34 @@
 import React, { useEffect, useState } from 'react';
 
 /**
- * Props:
- * - onSearch(query)               // callback to parent
- * - currentTab (string)          // 'Buy'|'Sell'|'Profit'
- * - allGrouped (object)          // grouped data from parent to help suggest/preview
+ * SearchBar (v4.4.3)
+ * - Uses metadata.title for suggestions and search matching
  */
-export default function SearchBar({ onSearch = ()=>{}, currentTab = 'Buy', allGrouped = {} }) {
+export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', allGrouped = {} }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
-    // build suggestions from allGrouped (flattened) for instant UX
     if (!q || q.length < 1) {
       setSuggestions([]);
       return;
     }
+
     const ql = q.toLowerCase();
     const names = [];
+
     Object.keys(allGrouped).forEach(cat => {
       Object.keys(allGrouped[cat]).forEach(sub => {
         allGrouped[cat][sub].forEach(it => {
           if (!it.name) return;
-          if (it.name.toLowerCase().includes(ql) || it.slug.toLowerCase().includes(ql)) names.push(it.name);
+          if (it.name.toLowerCase().includes(ql) || it.slug.toLowerCase().includes(ql)) {
+            names.push(it.name); // metadata.title
+          }
         });
       });
     });
-    const uniq = Array.from(new Set(names)).slice(0,10);
+
+    const uniq = Array.from(new Set(names)).slice(0, 10);
     setSuggestions(uniq);
   }, [q, allGrouped]);
 
@@ -53,7 +55,6 @@ export default function SearchBar({ onSearch = ()=>{}, currentTab = 'Buy', allGr
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
-            // if clearing query, still call onSearch with '' to reset filters
             if (e.target.value === '') onSearch('');
           }}
           disabled={currentTab === 'Profit'}
