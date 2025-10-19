@@ -5,14 +5,23 @@ import Loader from './Loader';
 import ProfitView from './ProfitView';
 import CategorySection from './CategorySection';
 import Toolbar from './Toolbar';
-import useMarketplaceData from './useMarketplaceData';
+import useMarketplaceData from './hooks/useMarketplaceData';
 
-/** Main marketplace UI — now clean and modular */
+/**
+ * MarketplaceView (v4.4.2.1)
+ * ---------------------------------------------
+ * - Uses custom hook `useMarketplaceData()` for all data, grouping & profit logic.
+ * - Renders toolbar (search + refresh controls).
+ * - Displays tabs for Buy / Sell / Profit.
+ * - Purely presentational – no data logic here.
+ */
+
 export default function MarketplaceView() {
+  // Local UI state
   const [activeTab, setActiveTab] = useState('Buy');
   const [query, setQuery] = useState('');
 
-  // Load all data and utilities from custom hook
+  // Load all marketplace data & utils from custom hook
   const {
     loading,
     error,
@@ -31,6 +40,7 @@ export default function MarketplaceView() {
   // ---------- Render ----------
   return (
     <div className="space-y-6">
+      {/* 🔍 Toolbar (search, refresh, expand/collapse) */}
       <Toolbar
         onSearch={setQuery}
         currentTab={activeTab}
@@ -42,16 +52,25 @@ export default function MarketplaceView() {
         minutesAgo={minutesAgo}
       />
 
-      <Tabs tabs={['Buy','Sell','Profit']} activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* 🪙 Tabs */}
+      <Tabs
+        tabs={['Buy', 'Sell', 'Profit']}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+
+      {/* ⏳ Loading indicator */}
       {loading && <Loader />}
 
+      {/* 💰 Profit tab */}
       {!loading && activeTab === 'Profit' && (
         <ProfitView groupedProfit={groupedProfit} profitItems={profitItems} />
       )}
 
+      {/* 🛒 Buy / Sell tabs */}
       {!loading && (activeTab === 'Buy' || activeTab === 'Sell') && (
         <div className="space-y-6">
-          {Object.keys(grouped).map(cat => (
+          {Object.keys(grouped).map((cat) => (
             <CategorySection
               key={cat}
               cat={cat}
@@ -65,6 +84,7 @@ export default function MarketplaceView() {
         </div>
       )}
 
+      {/* ⚠️ Error state */}
       {error && (
         <div className="bg-red-50 border border-red-200 p-4 rounded">
           <div className="font-semibold text-red-700">Error</div>
