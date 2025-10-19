@@ -1,13 +1,15 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 /**
- * SearchBar (v4.4.3)
- * - Uses metadata.title for suggestions and search matching
+ * SearchBar
+ * - Dropdown closes immediately on selection
+ * - Adds a clear (✕) button inside input field
  */
 export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', allGrouped = {} }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const wrapperRef = useRef(null);
 
   useEffect(() => {
     if (!q || q.length < 1) {
@@ -22,8 +24,11 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
       Object.keys(allGrouped[cat]).forEach(sub => {
         allGrouped[cat][sub].forEach(it => {
           if (!it.name) return;
-          if (it.name.toLowerCase().includes(ql) || it.slug.toLowerCase().includes(ql)) {
-            names.push(it.name); // metadata.title
+          if (
+            it.name.toLowerCase().includes(ql) ||
+            it.slug.toLowerCase().includes(ql)
+          ) {
+            names.push(it.name);
           }
         });
       });
@@ -34,37 +39,81 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
   }, [q, allGrouped]);
 
   const handleSelect = (s) => {
-    setQ(s);
+    // Close dropdown first for instant UX
     setSuggestions([]);
+    setQ(s);
     onSearch(s);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSearch(q);
     setSuggestions([]);
+    onSearch(q);
   };
 
+  const clearSearch = () => {
+    setQ('');
+    setSuggestions([]);
+    onSearch('');
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setSuggestions([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div className="w-full max-w-2xl mx-auto relative">
+    <div className="w-full max-w-2xl mx-auto relative" ref={wrapperRef}>
       <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          className="w-full p-3 border rounded shadow-sm"
-          placeholder={currentTab === 'Profit' ? 'Search disabled in Profit tab' : 'Search items (works in Buy & Sell)'}
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            if (e.target.value === '') onSearch('');
-          }}
-          disabled={currentTab === 'Profit'}
-        />
+        <div className="relative">
+          <input
+            type="text"
+            className="w-full p-3 pr-8 border rounded shadow-sm"
+            placeholder={
+              currentTab === 'Profit'
+                ? 'Search disabled in Profit tab'
+                : 'Search items (works in Buy & Sell)'
+            }
+            value={q}
+            onChange={(e) => {
+              const value = e.target.value;
+              setQ(value);
+              if (value === '') {
+                onSearch('');
+                setSuggestions([]);
+              }
+            }}
+            disabled={currentTab === 'Profit'}
+          />
+
+          {/* Clear button */}
+          {q && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg"
+              aria-label="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </form>
 
       {suggestions.length > 0 && (
         <ul className="suggestion-list absolute left-0 right-0 mt-1 rounded max-h-56 overflow-auto p-1">
           {suggestions.map((s, idx) => (
-            <li key={idx} className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => handleSelect(s)}>
+            <li
+              key={idx}
+              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+              onClick={() => handleSelect(s)}
+            >
               {s}
             </li>
           ))}
