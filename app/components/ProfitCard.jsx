@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * ProfitCard (v4.4.3)
- * - Uses metadata.title for display name
+ * ProfitCard (v4.4.3a)
+ * - Displays exact API gold values (no rounding)
  */
 export default function ProfitCard({ item }) {
   const buy = item.buy;
@@ -18,7 +18,7 @@ export default function ProfitCard({ item }) {
     setTotalProfit(profitPerUnit * Math.max(1, Number(bulk || 1)));
   }, [bulk, profitPerUnit]);
 
-  const name = item.name || item.slug || 'Item'; // metadata.title
+  const name = item.name || item.slug || 'Item';
   const img = item.image || '/placeholder.png';
 
   return (
@@ -34,8 +34,7 @@ export default function ProfitCard({ item }) {
               <a href={buy.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                 {buy.kingdomName || 'seller'}
               </a>{' '}
-              @ <span className="font-medium">{parseFloat(buy.unitPrice).toPrecision(4)} gold</span>{' '}
-              Qty: {buy.quantity}
+              @ <span className="font-medium">{buy.unitPrice}</span> gold Qty: {buy.quantity}
             </div>
 
             <div>
@@ -43,8 +42,7 @@ export default function ProfitCard({ item }) {
               <a href={sell.kingdomUrl || '#'} target="_blank" rel="noreferrer" className="text-blue-600 underline">
                 {sell.kingdomName || 'buyer'}
               </a>{' '}
-              @ <span className="font-medium">{parseFloat(sell.unitPrice).toPrecision(4)} gold</span>{' '}
-              Qty: {sell.quantity}
+              @ <span className="font-medium">{sell.unitPrice}</span> gold Qty: {sell.quantity}
             </div>
 
             <div className="mt-3 flex items-center gap-2">
@@ -54,7 +52,9 @@ export default function ProfitCard({ item }) {
                 min="1"
                 max={maxTradable}
                 value={bulk}
-                onChange={e => setBulk(Math.max(1, Math.min(maxTradable, Number(e.target.value || 1))))}
+                onChange={e =>
+                  setBulk(Math.max(1, Math.min(maxTradable, Number(e.target.value || 1))))
+                }
                 className="w-24 p-2 border rounded"
               />
               <div className="ml-auto text-sm font-semibold">
