@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 
 /**
- * ItemCard (v4.4.3b)
- * - Shows exact price text from API (no rounding)
- * - Total now limited to 4 decimals
+ * ItemCard (v4.4.3c)
+ * - Shows exact API string for price (no rounding)
+ * - Total uses same decimal count as price
  */
 export default function ItemCard({ item, viewType = 'buy' }) {
   const [amount, setAmount] = useState(1);
@@ -15,13 +15,13 @@ export default function ItemCard({ item, viewType = 'buy' }) {
   const subCategory = item.subCategory || 'General';
   const offer = item.singleOffer || {};
 
-  // Use API string directly to avoid JS rounding
-  const unitPriceStr = offer.unitPrice?.toString() ?? '0';
-  const unitPriceNum = Number(offer.unitPrice ?? 0);
+  const unitPriceStr = offer.unitPrice ?? '0';
+  const unitPriceNum = Number(unitPriceStr);
+  const decimals = unitPriceStr.includes('.') ? unitPriceStr.split('.')[1].length : 0;
   const qty = Number(offer.quantity ?? 0);
   const kingdomUrl = offer.kingdomUrl || '#';
   const kingdomName = offer.kingdomName || 'kingdom';
-  const total = (unitPriceNum * amount).toFixed(4); // clean 4 decimals
+  const total = (unitPriceNum * amount).toFixed(decimals);
 
   const cardColor =
     viewType === 'buy' ? 'from-green-50 to-white' : 'from-yellow-50 to-white';
@@ -30,12 +30,7 @@ export default function ItemCard({ item, viewType = 'buy' }) {
     <div className={`bg-gradient-to-r ${cardColor} rounded-lg p-4 shadow-sm card-hover`}>
       <div className="grid grid-cols-[64px_1fr] gap-3">
         <div className="flex items-center justify-center">
-          <img
-            src={img}
-            alt={name}
-            className="item-icon"
-            style={{ width: 54, height: 54, objectFit: 'contain' }}
-          />
+          <img src={img} alt={name} className="item-icon" />
         </div>
         <div className="flex flex-col h-full justify-between">
           <div>
