@@ -1,11 +1,15 @@
 'use client';
 import React, { useState } from 'react';
 
+/**
+ * ItemCard (v4.4.3)
+ * - Displays object.metadata.title instead of slug
+ */
 export default function ItemCard({ item, viewType = 'buy' }) {
   const [amount, setAmount] = useState(1);
 
   const img = item.image || '/placeholder.png';
-  const name = item.name || item.slug || 'Item';
+  const name = item.name || item.slug || 'Item'; // now passed in from metadata.title
   const category = item.category || 'Misc';
   const subCategory = item.subCategory || 'General';
   const offer = item.singleOffer || {};
