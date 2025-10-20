@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 
 /**
  * SearchBar
- * - Dropdown closes immediately on selection
+ * - Dropdown closes immediately on selection (also on mobile)
  * - Adds a clear (✕) button inside input field
  */
 export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', allGrouped = {} }) {
@@ -39,8 +39,8 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
   }, [q, allGrouped]);
 
   const handleSelect = (s) => {
-    // Close dropdown first for instant UX
-    setSuggestions([]);
+    // Close dropdown immediately (also fixes mobile Safari delay)
+    requestAnimationFrame(() => setSuggestions([]));
     setQ(s);
     onSearch(s);
   };
