@@ -1,11 +1,12 @@
 {
   "name": "nomstead-marketplace",
-  "version": "4",
+  "version": "4.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "craft:import": "node scripts/extractCraftFromWiki.mjs"
   },
   "dependencies": {
     "next": "14.2.4",
