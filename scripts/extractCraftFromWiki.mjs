@@ -6,7 +6,6 @@ import { writeFile } from 'node:fs/promises';
 
 const WIKI_URL = 'https://nomsteadwiki.web.id/items';
 
-// Convert display name to a slug similar to API slugs
 function toSlug(name) {
   return name
     .toLowerCase()
@@ -16,49 +15,75 @@ function toSlug(name) {
     .trim();
 }
 
-// Extract item sections and parse "Required Materials" blocks
-function extractSections(html) {
-  const blocks = html.split(/<h3[^>]*>|<\/h3>/i);
-  const results = [];
+// More robust extraction:
+// 1) Find all <h3>Title</h3>
+// 2) For each, look ahead in the following HTML for "Required Materials"
+// 3) Capture "Name: Number" pairs and optional "Produces: X units"
+function extractRecipes(html) {
+  const recipes = [];
 
-  for (let i = 1; i < blocks.length; i += 2) {
-    const titleHtml = blocks[i];
-    const rest = blocks[i + 1] || '';
+  // Global match for <h3>...title...</h3>
+  const h3Regex = /<h3[^>]*>(.*?)<\/h3>/gis;
+  let h3Match;
 
-    const titleMatch = titleHtml.match(/>([^<]+)</);
-    const title = titleMatch ? titleMatch[1].trim() : null;
+  while ((h3Match = h3Regex.exec(html)) !== null) {
+    const titleRaw = h3Match[1] || '';
+    const title = titleRaw.replace(/<[^>]*>/g, '').trim();
     if (!title) continue;
 
-    const reqIdx = rest.toLowerCase().indexOf('required materials');
+    // Slice of content after this <h3> to search for materials
+    // Look ahead a reasonable window (page is long; 2000 chars is safe)
+    const sectionStart = h3Regex.lastIndex;
+    const section = html.slice(sectionStart, sectionStart + 4000);
+
+    // Find "Required Materials" marker (h4, strong, or plain text)
+    const reqIdx = section.toLowerCase().indexOf('required materials');
     if (reqIdx === -1) continue;
 
-    const slice = rest.slice(reqIdx, reqIdx + 2000);
+    const afterReq = section.slice(reqIdx, reqIdx + 2000);
 
-    // Lines like: "Wood Plank: 200", "Ingot Iron: 10"
-    const matMatches = Array.from(slice.matchAll(/([A-Za-z0-9 \-\(\)]+)\s*:\s*([0-9]+)/g));
-    if (matMatches.length === 0) continue;
+    // Capture "Name: 123" lines; tolerate tags and breaks between
+    const materialPairs = [];
+    const lineRegex = /([A-Za-z0-9 \-\(\)]+)\s*:\s*([0-9]+)/g;
+    let m;
+    while ((m = lineRegex.exec(afterReq)) !== null) {
+      const matName = m[1].replace(/<[^>]*>/g, '').trim();
+      const qty = Number(m[2]);
+      if (!matName || !Number.isFinite(qty)) continue;
+      materialPairs.push({ name: matName, quantity: qty });
+    }
+
+    if (materialPairs.length === 0) continue;
 
     // Optional "Produces: X units"
     let producesUnits = 1;
-    const producesMatch = rest.match(/Produces:\s*([0-9]+)\s*units/i);
+    const producesMatch = section.match(/Produces:\s*([0-9]+)\s*units/i);
     if (producesMatch) {
       producesUnits = Number(producesMatch[1]);
     }
 
     const outputSlug = toSlug(title);
-    const inputs = matMatches.map((m) => {
-      const matName = m[1].trim();
-      const qty = Number(m[2]);
-      return { slug: toSlug(matName), name: matName, quantity: qty };
-    });
+    const inputs = materialPairs.map(p => ({
+      slug: toSlug(p.name),
+      name: p.name,
+      quantity: p.quantity
+    }));
 
-    results.push({
+    recipes.push({
       output: { slug: outputSlug, quantity: producesUnits },
       inputs
     });
   }
 
-  return results;
+  // Deduplicate by output.slug (keep first occurrence)
+  const seen = new Set();
+  const deduped = [];
+  for (const r of recipes) {
+    if (seen.has(r.output.slug)) continue;
+    seen.add(r.output.slug);
+    deduped.push(r);
+  }
+  return deduped;
 }
 
 async function run() {
@@ -69,20 +94,10 @@ async function run() {
   }
   const html = await res.text();
 
-  const recipes = extractSections(html);
-
-  // Deduplicate by output slug
-  const seen = new Set();
-  const deduped = [];
-  for (const r of recipes) {
-    if (seen.has(r.output.slug)) continue;
-    seen.add(r.output.slug);
-    deduped.push(r);
-  }
-
+  const recipes = extractRecipes(html);
   const outPath = 'app/data/craftRecipes.json';
-  await writeFile(outPath, JSON.stringify(deduped, null, 2), 'utf8');
-  console.log(`Wrote ${deduped.length} recipes → ${outPath}`);
+  await writeFile(outPath, JSON.stringify(recipes, null, 2), 'utf8');
+  console.log(`Wrote ${recipes.length} recipes → ${outPath}`);
 }
 
 run().catch((e) => {
