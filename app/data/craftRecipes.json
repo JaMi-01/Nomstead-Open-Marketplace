@@ -1,14 +1,1 @@
-[
-  {
-    "output": { "slug": "pillow_green", "quantity": 1 },
-    "inputs": [
-      { "slug": "cotton_thread_green", "quantity": 10 }
-    ]
-  },
-  {
-    "output": { "slug": "wood_plank", "quantity": 6 },
-    "inputs": [
-      { "slug": "wood", "quantity": 2 }
-    ]
-  }
-]
+[]
