@@ -1,0 +1,3 @@
+{
+  "buildCommand": "npm run craft:import && next build"
+}
