@@ -3,16 +3,20 @@ import React, { useEffect, useState, useRef } from 'react';
 
 /**
  * SearchBar
- * - Dropdown closes immediately on selection (also on mobile)
- * - Adds a clear (✕) button inside input field
+ * - Dropdown visibility controlled by `open`
+ * - Closes on select, submit, clear, and outside click
+ * - Uses exact display names (metadata.title) for suggestions
  */
 export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', allGrouped = {} }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false); // controls dropdown visibility
   const wrapperRef = useRef(null);
+  const inputRef = useRef(null);
 
+  // Build suggestions only when open and query present
   useEffect(() => {
-    if (!q || q.length < 1) {
+    if (!open || !q || q.length < 1) {
       setSuggestions([]);
       return;
     }
@@ -24,10 +28,7 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
       Object.keys(allGrouped[cat]).forEach(sub => {
         allGrouped[cat][sub].forEach(it => {
           if (!it.name) return;
-          if (
-            it.name.toLowerCase().includes(ql) ||
-            it.slug.toLowerCase().includes(ql)
-          ) {
+          if (it.name.toLowerCase().includes(ql) || it.slug.toLowerCase().includes(ql)) {
             names.push(it.name);
           }
         });
@@ -36,64 +37,82 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
 
     const uniq = Array.from(new Set(names)).slice(0, 10);
     setSuggestions(uniq);
-  }, [q, allGrouped]);
+  }, [q, allGrouped, open]);
 
   const handleSelect = (s) => {
-    // Close dropdown immediately (also fixes mobile Safari delay)
-    requestAnimationFrame(() => setSuggestions([]));
+    // Close immediately and prevent re-open from effect
+    setOpen(false);
+    setSuggestions([]);
     setQ(s);
     onSearch(s);
+    // Blur input to dismiss mobile keyboard and additional focus events
+    if (inputRef.current) inputRef.current.blur();
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setOpen(false);
     setSuggestions([]);
     onSearch(q);
+    if (inputRef.current) inputRef.current.blur();
   };
 
   const clearSearch = () => {
     setQ('');
     setSuggestions([]);
+    setOpen(false);
     onSearch('');
+    if (inputRef.current) inputRef.current.blur();
   };
 
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setOpen(false);
         setSuggestions([]);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
+
+  const disabled = currentTab === 'Profit';
 
   return (
     <div className="w-full max-w-2xl mx-auto relative" ref={wrapperRef}>
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <input
+            ref={inputRef}
             type="text"
             className="w-full p-3 pr-8 border rounded shadow-sm"
-            placeholder={
-              currentTab === 'Profit'
-                ? 'Search disabled in Profit tab'
-                : 'Search items (works in Buy & Sell)'
-            }
+            placeholder={disabled ? 'Search disabled in Profit tab' : 'Search items (works in Buy & Sell)'}
             value={q}
+            onFocus={() => !disabled && setOpen(true)}
             onChange={(e) => {
               const value = e.target.value;
               setQ(value);
+              if (disabled) return;
               if (value === '') {
                 onSearch('');
                 setSuggestions([]);
+                setOpen(false);
+              } else {
+                setOpen(true);
               }
             }}
-            disabled={currentTab === 'Profit'}
+            disabled={disabled}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
           />
 
-          {/* Clear button */}
-          {q && (
+          {q && !disabled && (
             <button
               type="button"
               onClick={clearSearch}
@@ -106,13 +125,15 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
         </div>
       </form>
 
-      {suggestions.length > 0 && (
+      {open && suggestions.length > 0 && !disabled && (
         <ul className="suggestion-list absolute left-0 right-0 mt-1 rounded max-h-56 overflow-auto p-1">
           {suggestions.map((s, idx) => (
             <li
               key={idx}
               className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => handleSelect(s)}
+              // onMouseDown fires before input blur; improves reliability on desktop/mobile
+              onMouseDown={() => handleSelect(s)}
+              onTouchStart={() => handleSelect(s)}
             >
               {s}
             </li>
