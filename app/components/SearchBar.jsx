@@ -4,26 +4,24 @@ import React, { useEffect, useState, useRef } from 'react';
 /**
  * SearchBar
  * - Dropdown visibility controlled by `open`
- * - Closes on select, submit, clear, and outside click
- * - Uses exact display names (metadata.title) for suggestions
+ * - Disabled in Profit and Craft
  */
 export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', allGrouped = {} }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [open, setOpen] = useState(false); // controls dropdown visibility
+  const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Build suggestions only when open and query present
+  const disabled = currentTab === 'Profit' || currentTab === 'Craft';
+
   useEffect(() => {
-    if (!open || !q || q.length < 1) {
+    if (!open || !q || q.length < 1 || disabled) {
       setSuggestions([]);
       return;
     }
-
     const ql = q.toLowerCase();
     const names = [];
-
     Object.keys(allGrouped).forEach(cat => {
       Object.keys(allGrouped[cat]).forEach(sub => {
         allGrouped[cat][sub].forEach(it => {
@@ -34,18 +32,15 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
         });
       });
     });
-
     const uniq = Array.from(new Set(names)).slice(0, 10);
     setSuggestions(uniq);
-  }, [q, allGrouped, open]);
+  }, [q, allGrouped, open, disabled]);
 
   const handleSelect = (s) => {
-    // Close immediately and prevent re-open from effect
     setOpen(false);
     setSuggestions([]);
     setQ(s);
     onSearch(s);
-    // Blur input to dismiss mobile keyboard and additional focus events
     if (inputRef.current) inputRef.current.blur();
   };
 
@@ -65,7 +60,6 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
     if (inputRef.current) inputRef.current.blur();
   };
 
-  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -81,8 +75,6 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
     };
   }, []);
 
-  const disabled = currentTab === 'Profit';
-
   return (
     <div className="w-full max-w-2xl mx-auto relative" ref={wrapperRef}>
       <form onSubmit={handleSubmit}>
@@ -91,7 +83,11 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
             ref={inputRef}
             type="text"
             className="w-full p-3 pr-8 border rounded shadow-sm"
-            placeholder={disabled ? 'Search disabled in Profit tab' : 'Search items (works in Buy & Sell)'}
+            placeholder={
+              disabled
+                ? 'Search disabled in Profit & Craft'
+                : 'Search items (works in Buy & Sell)'
+            }
             value={q}
             onFocus={() => !disabled && setOpen(true)}
             onChange={(e) => {
@@ -131,7 +127,6 @@ export default function SearchBar({ onSearch = () => {}, currentTab = 'Buy', all
             <li
               key={idx}
               className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-              // onMouseDown fires before input blur; improves reliability on desktop/mobile
               onMouseDown={() => handleSelect(s)}
               onTouchStart={() => handleSelect(s)}
             >
