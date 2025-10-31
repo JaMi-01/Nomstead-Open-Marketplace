@@ -2,7 +2,10 @@
 import React from 'react';
 import SearchBar from './SearchBar';
 
-/** Toolbar = Search + Refresh / Expand / Collapse controls */
+/**
+ * Toolbar
+ * - Disables search in Profit and Craft tabs
+ */
 export default function Toolbar({
   onSearch,
   currentTab,
@@ -13,9 +16,11 @@ export default function Toolbar({
   lastUpdated,
   minutesAgo
 }) {
+  const disableSearch = currentTab === 'Profit' || currentTab === 'Craft';
+
   return (
     <div className="flex flex-col items-center gap-3">
-      <SearchBar onSearch={onSearch} currentTab={currentTab} allGrouped={allGrouped} />
+      <SearchBar onSearch={onSearch} currentTab={disableSearch ? 'Profit' : currentTab} allGrouped={allGrouped} />
       <div className="flex flex-col items-center gap-1">
         <div className="flex gap-3 items-center">
           <button onClick={fetchData} className="px-3 py-2 bg-white border rounded">Refresh</button>
